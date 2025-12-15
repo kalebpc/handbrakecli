@@ -1,6 +1,6 @@
 # handbrake.ps1 © 2025 https://github.com/kalebpc/handbrakecli
 # 'Roku 480p30 Modded' preset.
-# This code will recursively copy directories, re-encode source files to destination then move source directory to temp/trash/backup folder.
+# This code will recursively copy directories, re-encode or copy source files to destination then move source directory to temp/trash/backup folder.
 # ./handbrake [path2SourceFolder] [path2DestinationFolder.*]
 function Help { "usage:`n       ./handbrake [path2SourceFolder] [path2DestinationFolder]`n" ; Return }
 function Exiting {
@@ -41,25 +41,34 @@ If ( ! $(Test-Path -Path $processedPath) ) { New-Item -ItemType "Directory" -Pat
 $readyFile = "Readyy.txt"
 $threads = 4
 $pause = 5
+$sourceExt = "mkv"
+$destExt = "mp4"
 $logFile = "$logPath/robocopyProcess.log"
 function Get-ReadyDirectory {
     [String[]]$readyDirectories = Get-ChildItem -Path $sourceFilePath -Recurse -Include $readyFile | Split-Path -Parent
     ForEach ( $directory In $readyDirectories ) {
         $readyDirectory = Split-Path -Path $directory -Leaf
-        "Copying directory tree for '{0}'..." -f $directory
+        "`nCopying directory tree for '{0}'..." -f $directory
         Robocopy "$directory" "$destinationFilePath`\$readyDirectory" /mt:$($threads) /e /z /xf "*.*" /xx /unilog+:$logFile
         # Find mkv files.
-        ForEach ( $sfp In $(Get-ChildItem -Path "$directory" -Recurse -Include "*.mkv") ) {
+        ForEach ( $sfp In $(Get-ChildItem -Path "$directory" -Recurse -Include "*.$sourceExt") ) {
             $in = $sfp.FullName
             $out = $($sfp.FullName).Replace($sourceFilePath,$destinationFilePath)
+            $out = $out.Replace($sourceExt,$destExt)
+
+            # Change containers.
+            # "`nCopying - Container Change:`nin  : {0}`nout : {1}" -f $in, $out
+            # Add-Content -Path "$logFile" -Value "`n------------`nCopying - Container Change:`nin: '$in'`nout: '$out'.`n------------`n"
+            # ffmpeg -i $in -map 0 -c:v copy -c:a copy -c:s copy $out
+
+            # Encode files.
             "Encoding:`nin  : {0}`nout : {1}`n" -f $in, $out
             Add-Content -Path "$logFile" -Value "`n------------`nEncoding:`nin: '$in'`nout: '$out'.`n------------`n"
-            # Encode files
             HandBrakeCLI --preset-import-gui -Z "Roku 480p30 Modded" -i "$in" -o "$out"
         }
         # Move processed folder to Temp-PostProcessed.
         Move-Item -Path "$directory" -Destination "$processedPath"
-        "Moved '{0}' to '{1}'." -f $directory, $processedPath
+        "`nMoved '{0}' to '{1}'." -f $directory, $processedPath
         Add-Content -Path "$logFile" -Value "`n------------`nMoved '$directory' to '$processedPath'.`n------------`n"
         "Paused for {0} mins to allow graceful exit." -f $pause
         Add-Content -Path "$logFile" -Value "`n------------`nPaused for $pause mins to allow graceful exit.`n------------`n"
@@ -68,4 +77,4 @@ function Get-ReadyDirectory {
 }
 $minutes = 1
 # Time to wait in between running a check on source directory.
-While ($true) { Get-ReadyDirectory ; Start-Sleep -Seconds ($minutes * 60) }
+While ($true) { Get-ReadyDirectory ; "Sleeping for {0} mins." -f $minutes ; Start-Sleep -Seconds ($minutes * 60) }
