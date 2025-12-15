@@ -12,19 +12,18 @@ Option 1
 1. Create shortcut to 'handbrake.ps1'.
 2. Right-click shortcut.
 3. Modifiy 'Target' under shortcut tab to include `powershell.exe` in front of the path.
-4. Add source and destination directories after path to powershell file.
-5. Optional: Set '[Int]', the time to wait in between directory copy/encodes to allow for graceful exit between jobs. Default is 5 minutes.
+4. Add parameters after path to powershell file.
 
-- Target: `powershell.exe C:\Users\Username\Documents\handbrake.ps1 'G:\path\to\in-folder' 'G:\path\to\out-folder' [Int]`
-6. Click OK to save and close.
-7. Double-click to run.
+- Target: `powershell.exe C:\Users\Username\Documents\handbrake.ps1 -Preset 'Presetname' -Encoding -Source 'G:\path\to\in-folder' -Destination 'G:\path\to\out-folder'`
+5. Click OK to save and close.
+6. Double-click to run.
 
 Option 2
-1. Modifiy run.ps1 to have your source, destination directories, and graceful exit pause time(minutes).
+1. Modifiy run.ps1 to have your source, destination directories and preset if encoding.
 ```
 $in = "G:\path\to\in-folder"
 $out = "G:\path\to\out-folder"
-[Int]$pause = 5
+$preset = "Roku 480p30"
 ```
 2. Run run.ps1
 ```
@@ -33,5 +32,11 @@ $out = "G:\path\to\out-folder"
 
 Option 3
 ```
-./handbrake [path2SourceFolder] [path2DestinationFolder] [Optional:pauseTimeForGracefulExit]
+./handbrake -Preset "Presetname" -Encoding -Source "G:\path\to\in-folder" -Destination "G:\path\to\out-folder"
+
+handbrake.ps1 -Preset <string> -Encoding [-Help] [-Source <string>] [-Destination <string>] [-SourceExt <string>] [-DestinationExt <string>] [-Ready <string>] [-Pause <int>] [-Processed <string>] [-Log <string>] [-LogFile <string>] [-RobocopyThreads <int>] [-CheckDirectory <int>] [<CommonParameters>]
+
+./handbrake -Copying -Source "G:\path\to\in-folder" -Destination "G:\path\to\out-folder"
+
+handbrake.ps1 -Copying [-Help] [-Source <string>] [-Destination <string>] [-SourceExt <string>] [-DestinationExt <string>] [-Ready <string>] [-Pause <int>] [-Processed <string>] [-Log <string>] [-LogFile <string>] [-RobocopyThreads <int>] [-CheckDirectory <int>] [<CommonParameters>]
 ```
