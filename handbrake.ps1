@@ -1,8 +1,8 @@
 # handbrake.ps1 © 2025 https://github.com/kalebpc/handbrakecli
 # 'Roku 480p30 Modded' preset.
 # This code will recursively copy directories, re-encode or copy source files to destination then move source directory to temp/trash/backup folder.
-# ./handbrake [path2SourceFolder] [path2DestinationFolder.*]
-function Help { "usage:`n       ./handbrake [path2SourceFolder] [path2DestinationFolder]`n" ; Return }
+# ./handbrake [path2SourceFolder] [path2DestinationFolder] [pauseTimeForGracefulExit]
+function Help { "usage:`n       ./handbrake [path2SourceFolder] [path2DestinationFolder] [pauseTimeForGracefulExit]`n" ; Return }
 function Exiting {
     [CmdletBinding()]
     param(
@@ -40,7 +40,8 @@ $processedPath = "$(Split-Path -Path $sourceFilePath -Qualifier)/Temp-PostProces
 If ( ! $(Test-Path -Path $processedPath) ) { New-Item -ItemType "Directory" -Path $processedPath -Force }
 $readyFile = "Readyy.txt"
 $threads = 4
-$pause = 5
+$temp = $args[2]
+If ( $temp -ne $null ) { $pause = $temp } Else { $pause = 5 }
 $sourceExt = "mkv"
 $destExt = "mp4"
 $logFile = "$logPath/robocopyProcess.log"
