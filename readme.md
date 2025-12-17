@@ -2,41 +2,83 @@
 
 ## What this code does
 
-This code will recursively copy directories, re-encode or copy source files to destination then move source directory to temp/trash/backup folder.
+This code will recursively copy directories, re-encode or copy source files to destination then move folder from 'Source' to 'Processed'.
 
 ## Usage
 
-There are different options to use this script.
+Help
 
-Option 1
-1. Create shortcut to 'handbrake.ps1'.
+`./handbrake -Help`
+
+#### Use 'Get-Help' cmdlet to get detailed help.
+```
+Get-Help ./handbrake
+
+Get-Help ./handbrake -full
+
+Get-Help ./handbrake -detailed
+
+Get-Help ./handbrake -examples
+
+help ./handbrake
+
+help ./handbrake -full
+
+help ./handbrake -detailed
+
+help ./handbrake -examples
+```
+### There are different options to use this script.
+
+Option 1 Encoding
+1. Create shortcut to 'run.ps1'.
 2. Right-click shortcut.
 3. Modifiy 'Target' under shortcut tab to include `powershell.exe` in front of the path.
-4. Add parameters after path to powershell file.
-
-- Target: `powershell.exe C:\Users\Username\Documents\handbrake.ps1 -Preset 'Presetname' -Encoding -Source 'G:\path\to\in-folder' -Destination 'G:\path\to\out-folder'`
 5. Click OK to save and close.
-6. Double-click to run.
-
-Option 2
-1. Modifiy run.ps1 to have your source, destination directories and preset if encoding.
+4. Add parameters to 'run.ps1' powershell file.
 ```
-$in = "G:\path\to\in-folder"
-$out = "G:\path\to\out-folder"
-$preset = "Roku 480p30"
+$preset1 = "Roku 480p30 Modded"
+$preset2 = "Roku 480p30"
+$source = "G:\Videos\MKV Videos"
+$destination = "G:\Videos\Movies"
+$sourceExt = "mkv"
+$destinationExt = "mp4"
+$ready = "Ready.txt"
+$processed = "G:\Processed"
 ```
-2. Run run.ps1
+6. Double-click shortcut to run 'handbrake.ps1'.
+7. Once running, make new text file named 'Ready.txt' in a folder inside 'Source' directory and the script will find and begin processing the files it finds with the 'sourceExt' extension.
+
+Option 2 Encoding
+
+Run from powershell terminal.
 ```
-./run.ps1
+./handbrake -Encoding -Preset <string[]> -Source <string> -Destination <string> -SourceExt <string> -DestinationExt <string> -Ready <string> -Processed <string> [Options]
 ```
 
-Option 3
+Option 1 Copying
+1. Modify parameters in 'run.ps1' powershell file.
 ```
-./handbrake -Preset "Presetname" -Encoding -Source "G:\path\to\in-folder" -Destination "G:\path\to\out-folder"
+$source = "G:\Videos\MKV Videos"
+$destination = "G:\Videos\Movies"
+$sourceExt = "mkv"
+$destinationExt = "mp4"
+$ready = "Ready.txt"
+$processed = "G:\Processed"
+```
+2. Modify Start-Process command in 'run.ps1' to remove 'presets' and replace 'Encoding' with 'Copying'.
+```
+.../handbrake.ps1 -Copying -Source '$source'...
 
-handbrake.ps1 -Preset <string> -Encoding [-Help] [-Source <string>] [-Destination <string>] [-SourceExt <string>] [-DestinationExt <string>] [-Ready <string>] [-Pause <int>] [-Processed <string>] [-Log <string>] [-LogFile <string>] [-RobocopyThreads <int>] [-CheckDirectory <int>] [<CommonParameters>]
+```
+3. Create shortcut to 'run.ps1'.
+4. Right-click shortcut.
+5. Modifiy 'Target' under shortcut tab to include `powershell.exe` in front of the path.
+6. Double-click shortcut to run 'handbrake.ps1'.
 
-./handbrake -Copying -Source "G:\path\to\in-folder" -Destination "G:\path\to\out-folder"
+Option 2 Copying
 
-handbrake.ps1 -Copying [-Help] [-Source <string>] [-Destination <string>] [-SourceExt <string>] [-DestinationExt <string>] [-Ready <string>] [-Pause <int>] [-Processed <string>] [-Log <string>] [-LogFile <string>] [-RobocopyThreads <int>] [-CheckDirectory <int>] [<CommonParameters>]
+Run from powershell terminal.
+```
+./handbrake -Copying -Source <string> -Destination <string> -SourceExt <string> -DestinationExt <string> -Ready <string> -Processed <string> [Options]
 ```
