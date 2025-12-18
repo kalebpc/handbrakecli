@@ -32,10 +32,10 @@
 <#
 
 .SYNOPSIS
-    Copy or encode files using ffmpeg and handbrakeCLI.
+    Copy or encode files using FFmpeg and HandBrakeCLI.
 
 .DESCRIPTION
-    Requires 'FFmpeg', 'HandBrake CLI'
+    Requires 'FFmpeg' or 'Jellyfin FFmpeg' and 'HandBrake CLI'
     handbrake.ps1 script will recursively copy directories, re-encode or copy source files to destination then move folder from 'Source' to 'Processed'.
 
 .PARAMETER Help
@@ -73,24 +73,46 @@
 
 .PARAMETER Processed
     Enter the fully qulified path of the folder to move source folders to after processing.
-    Example: '$ENV:USERPROFILE/Videos/Post-Processed'
+    Example: 'G:/Videos/Post-Processed'
 
 .PARAMETER Pause
     Number of minutes to wait between folders that are ready to be processed.
 
 .PARAMETER RobocopyThreads
-    Number of cpu threads for Robocopy to use when copying directory tree.
+    Number of cpu threads for Robocopy to use when copying directory tree. MIN:1 MAX:128
 
 .PARAMETER CheckDirectory
     Number of minutes to wait between scanning Source directory folders for 'Ready file'.
+
 .PARAMETER CheckDirectorySilent
     Suppress the 'Sleeping for 'CheckDirectory' mins.' output in terminal.
+
+.PARAMETER Movflags
+    Set FFmpeg 'movflags' switch.
+
 .INPUTS
     None
+
 .OUTPUTS
     None
+
 .EXAMPLE
-    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source '$ENV:USERPROFILE/Downloads' -Destination '$ENV:USERPROFILE/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed '$ENV:USERPROFILE/Videos/Post-Processed'
+    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed'
+
+.EXAMPLE
+    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent
+
+.EXAMPLE
+    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent -RobocopyThreads 32
+
+.EXAMPLE
+    ./handbrake -Copying -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -Movflags '+faststart'
+
+.EXAMPLE
+    ./handbrake -Copying -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent
+
+.EXAMPLE
+    ./handbrake -Copying -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent -RobocopyThreads 128
 
 #>
 
@@ -136,7 +158,9 @@ param(
     [Int32]$CheckDirectory = 1,
     [Parameter(ParameterSetName = "Encoding", HelpMessage="Suppress the 'Sleeping for 'CheckDirectory' mins.' output in terminal.")]
     [Parameter(ParameterSetName = "Copying", HelpMessage="Suppress the 'Sleeping for 'CheckDirectory' mins.' output in terminal.")]
-    [Switch]$CheckDirectorySilent
+    [Switch]$CheckDirectorySilent,
+    [Parameter(ParameterSetName = "Copying", HelpMessage="Set FFmpeg -movflags switch.")]
+    [String]$Movflags
 )
 function Help {
    "Usage: `
@@ -148,9 +172,10 @@ Options: `
     -Pause                - Number of minutes to wait between folders ready to be processed. `
     -RobocopyThreads      - Number of cpu threads for Robocopy to use when copying directory tree. `
     -CheckDirectory       - Number of minutes to wait between scanning Source directory folders for 'Ready' file. `
-    -CheckDirectorySilent - Flag to suppress the 'Sleeping for $CheckDirectory mins.' output in terminal.`n `
+    -CheckDirectorySilent - Flag to suppress the 'Sleeping for $CheckDirectory mins.' output in terminal. `
+    -Movflags             - Set FFmpeg -movflags switch.`n `
 Example: `
-    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source '$ENV:USERPROFILE/Downloads' -Destination '$ENV:USERPROFILE/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed '$ENV:USERPROFILE/Videos/Post-Processed'`n"
+    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed'`n"
     Return
 }
 function Exiting {
@@ -176,14 +201,20 @@ $DestinationExt = $DestinationExt.TrimEnd()
 $Ready = $Ready.TrimEnd()
 $Preset1 = $Preset1.TrimEnd()
 $Preset2 = $Preset2.TrimEnd()
-"Preset1: '{0}'`nPreset2: '{1}'`n" -f $Preset1,$Preset2
+$Movflags = $Movflags.TrimEnd()
+If ($Copying) { "Moveflags: '{0}'`n" -f $Movflags } Else { "Preset1: '{0}'`nPreset2: '{1}'`n" -f $Preset1,$Preset2 }
+
+# TODO ...
+# Need to find a way to figure out if destination is in the same path of source.
+# There is a issue where if the destination folder is in same directory of the source causes a recursion fault.
+
 # Set install path.
 [String]$installPath = "$ENV:LOCALAPPDATA\Scripts\HandBrake"
 [String]$log = "$installPath\logs\handbrake.log"
 # Verify paths.
 If ( ! $(Test-Path -Path $installPath) ) { New-Item -ItemType "Directory" -Path $installPath -Force }
 If ( $Source -ne "" ) { If ( ! $(Test-Path -Path $Source) ) { Exiting -Reason "System cannot find '$Source'." -Exitcode 1 } Else { "Verified 'Source' path." } } Else { Exiting -Reason "System cannot find '$Source'." -Exitcode 1 }
-If ( $Destination -ne "" ) { If ( ! $(Test-Path -Path $Destination) ) { Exiting -Reason "System cannot find '$Destination'." -Exitcode 1 } Else { "Verified 'Destination' path." } } ELSE { Exiting -Reason "System cannot find '$Destination'." -Exitcode 1 }
+If ( $Destination -ne "" ) { If ( ! $(Test-Path -Path $Destination) ) { New-Item -ItemType "Directory" -Path $Processed -Force } Else { "Verified 'Destination' path." } } ELSE { Exiting -Reason "System cannot find '$Destination'." -Exitcode 1 }
 # Complete paths.
 function Complete-Path { param([String]$P) return "$PWD$($P.Substring(1))" }
 If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
@@ -194,7 +225,7 @@ If ( ! $(Test-Path -Path $(Split-Path -Path $log -Parent)) ) { New-Item -ItemTyp
 If ( $Processed -ne "" ) { If ( ! $(Test-Path -Path $Processed) ) { New-Item -ItemType "Directory" -Path $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { Exiting -Reason "System cannot find '$Processed'." -Exitcode 1 }
 # Verify ffmpeg installed for copying.
 If ($Copying) {
-    If ( $(Get-Package | Where { $_.Name -ieq "FFmpeg"}).Name -ieq "FFmpeg" ) {
+    If ( $(Get-Package | Where { $_.Name -like "*FFmpeg"}).Name -like "*FFmpeg" ) {
         "Found 'FFmpeg'.`n"
         Add-Content -Path "$log" -Value "`n------------`nFound 'FFmpeg'.`n------------`n"
     } Else {
@@ -225,12 +256,59 @@ function Get-ReadyDirectory {
             $out = $($sfp.FullName).Replace($Source,$Destination)
             $out = $out.Replace($SourceExt,$DestinationExt)
             If ($Copying) {
-                # Change containers.
-                "`nCopying - Container Change:`nin  : {0}`nout : {1}" -f $in, $out
-                Add-Content -Path "$log" -Value "`n------------`nCopying - Container Change:`nin: '$in'`nout: '$out'.`n------------`n"
-                ffmpeg -i $in -map 0 -c:v copy -c:a copy -c:s copy $out
-            }
-            If ($Encoding) {
+                function Print-Output {
+                    param(
+                        [Switch]$CC,
+                        [Switch]$MF
+                    )
+                    If ($CC) {
+                        If ($MF) {
+                            "`nCopying - Container Change - Movflags : {2}`nin  : {0}`nout : {1}" -f $in, $out, $Movflags
+                            Add-Content -Path "$log" -Value "`n------------`nCopying - Container Change - Movflags: $Movflags`nin: '$in'`nout: '$out'.`n------------`n"
+                        } Else {
+                            "`nCopying - Container Change :`nin  : {0}`nout : {1}" -f $in, $out
+                            Add-Content -Path "$log" -Value "`n------------`nCopying - Container Change:`nin: '$in'`nout: '$out'.`n------------`n"
+                        }
+                    } Else {
+                        If ($MF) {
+                            "`nCopying - Movflags : {2}`nin  : {0}`nout : {1}" -f $in, $out, $Movflags
+                            Add-Content -Path "$log" -Value "`n------------`nCopying - Movflags: $Movflags`nin: '$in'`nout: '$out'.`n------------`n"
+                        } Else {
+                            "`nCopying :`nin  : {0}`nout : {1}" -f $in, $out
+                            Add-Content -Path "$log" -Value "`n------------`nCopying:`nin: '$in'`nout: '$out'.`n------------`n"
+                        }
+                    }
+                }
+                If ($SourceExt -ieq $DestinationExt) {
+                    # Copy without changing container.
+                    If ($Movflags -ine "") {
+                        If ($DestinationExt -ieq "mp4") {
+                            Print-Output -MF
+                            ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s mov_text -movflags "$Movflags" "$out"
+                        } Else {
+                            Print-Output -MF
+                            ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s copy -movflags "$Movflags" "$out"
+                        }
+                    } Else {
+                        Print-Output
+                        ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s copy "$out"
+                    }
+                } Else {
+                    # Change containers.
+                    If ($Movflags -ine "") {
+                        If ($DestinationExt -ieq "mp4") {
+                            Print-Output -CC -MF
+                            ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s mov_text -movflags "$Movflags" "$out"
+                        } Else {
+                            Print-Output -CC -MF
+                            ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s copy -movflags "$Movflags" "$out"
+                        }
+                    } Else {
+                        Print-Output -CC
+                        ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s copy "$out"
+                    }
+                }
+            } Else {
                 # Encode files.
                 If ( $Preset1 -ine "" ) {
                     If ( $Preset2 -ine "" ) {
@@ -265,3 +343,4 @@ If ($CheckDirectorySilent) {
 } Else {
     While ($true) { Get-ReadyDirectory ; "Sleeping for {0} mins." -f $CheckDirectory ; Start-Sleep -Seconds ($CheckDirectory * 60) }
 }
+
