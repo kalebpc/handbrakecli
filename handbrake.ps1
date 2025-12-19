@@ -257,6 +257,7 @@ function Get-ReadyDirectory {
             $out = $out.Replace($SourceExt,$DestinationExt)
             If ($Copying) {
                 function Print-Output {
+                    [CmdletBinding()]
                     param(
                         [Switch]$CC,
                         [Switch]$MF
@@ -312,6 +313,7 @@ function Get-ReadyDirectory {
                 # Encode files.
                 If ( $Preset1 -ine "" ) {
                     If ( $Preset2 -ine "" ) {
+                        # TODO ... Add config where ANY subfolders are processed with Preset2 but direct folder uses Preset1.
                         If ( $in -imatch "extras" ) {
                             "Encoding Extras: {2}`nin  : {0}`nout : {1}`n" -f $in, $out, $Preset2
                             Add-Content -Path "$log" -Value "`n------------`Encoding Extras: $Preset2`nin: '$in'`nout: '$out'.`n------------`n"
@@ -331,10 +333,12 @@ function Get-ReadyDirectory {
         }
         # Move processed folder to $Processed.
         Move-Item -Path "$directory" -Destination "$Processed"
-        "`nMoved '{0}' to '{1}'." -f $directory, $Processed
+        "`nMoved '{0}' to '{1}'.`n" -f $directory, $Processed
         Add-Content -Path "$log" -Value "`n------------`nMoved '$directory' to '$Processed'.`n------------`n"
-        "Paused for {0} mins to allow graceful exit." -f $Pause
-        Add-Content -Path "$log" -Value "`n------------`nPaused for $Pause mins to allow graceful exit.`n------------`n"
+        "Finished Folder : {0}`n" -f $(Get-Date)
+        Add-Content -Path "$log" -Value "`n------------`nFinished Folder : $(Get-Date)`n------------`n"
+        "Paused for '{0}' mins to allow graceful exit.`n" -f $Pause
+        Add-Content -Path "$log" -Value "`n------------`nPaused for '$Pause' mins to allow graceful exit.`n------------`n"
         Start-Sleep -Seconds ($Pause * 60)
     }
 }
@@ -343,4 +347,3 @@ If ($CheckDirectorySilent) {
 } Else {
     While ($true) { Get-ReadyDirectory ; "Sleeping for {0} mins." -f $CheckDirectory ; Start-Sleep -Seconds ($CheckDirectory * 60) }
 }
-
