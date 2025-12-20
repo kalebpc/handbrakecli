@@ -90,6 +90,14 @@
 .PARAMETER Movflags
     Set FFmpeg 'movflags' switch.
 
+.PARAMETER Notify
+    Send script updates to discord webhook.
+        Example:    'username','webhookUri'.
+        Example:    'file','webhookfile.ext'.   Loads 'username' and 'webhookUri' from file.
+                    
+        webhookfile.ext contents:   'username' = 'yourusernamehere'
+                                    'webhookUri' = 'https://discord.com/api/webhooks/yourwebhookhere'
+
 .INPUTS
     None
 
@@ -97,13 +105,13 @@
     None
 
 .EXAMPLE
-    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed'
+    ./handbrake -Encoding -Preset1 'Roku 1080p30' -Preset2 'Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed'
 
 .EXAMPLE
-    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent
+    ./handbrake -Encoding -Preset1 'Roku 1080p30' -Preset2 'Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent
 
 .EXAMPLE
-    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent -RobocopyThreads 32
+    ./handbrake -Encoding -Preset1 'Roku 1080p30' -Preset2 'Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent -RobocopyThreads 32
 
 .EXAMPLE
     ./handbrake -Copying -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -Movflags '+faststart'
@@ -113,6 +121,12 @@
 
 .EXAMPLE
     ./handbrake -Copying -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent -RobocopyThreads 128
+
+.EXAMPLE
+    ./handbrake.ps1 -Encoding -Preset1 'Roku 1080p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent -Notify "file",".env"
+
+.EXAMPLE
+    ./handbrake.ps1 -Encoding -Preset1 'Roku 1080p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed' -CheckDirectorySilent -Notify "discordUsername","https://discord.com/api/finishRestOfWebhookUriHere"
 
 #>
 
@@ -160,7 +174,10 @@ param(
     [Parameter(ParameterSetName = "Copying", HelpMessage="Suppress the 'Sleeping for 'CheckDirectory' mins.' output in terminal.")]
     [Switch]$CheckDirectorySilent,
     [Parameter(ParameterSetName = "Copying", HelpMessage="Set FFmpeg -movflags switch.")]
-    [String]$Movflags
+    [String]$Movflags,
+    [Parameter(ParameterSetName = "Encoding", HelpMessage="Send script updates to discord webhook. Example: 'username','webhookUri' ; Example: 'file','webhookfile.ext' to load 'username' and 'webhookUri' from file.")]
+    [Parameter(ParameterSetName = "Copying", HelpMessage="Send script updates to discord webhook. Example: 'username','webhookUri' ; Example: 'file','webhookfile.ext' to load 'username' and 'webhookUri' from file.")]
+    [String[]]$Notify
 )
 function Help {
    "Usage: `
@@ -169,11 +186,14 @@ function Help {
     ./handbrake -Help`n `
 
 Options: `
-    -Pause                - Number of minutes to wait between folders ready to be processed. `
-    -RobocopyThreads      - Number of cpu threads for Robocopy to use when copying directory tree. `
-    -CheckDirectory       - Number of minutes to wait between scanning Source directory folders for 'Ready' file. `
-    -CheckDirectorySilent - Flag to suppress the 'Sleeping for $CheckDirectory mins.' output in terminal. `
-    -Movflags             - Set FFmpeg -movflags switch.`n `
+    -Pause                  - Number of minutes to wait between folders ready to be processed. `
+    -RobocopyThreads        - Number of cpu threads for Robocopy to use when copying directory tree. `
+    -CheckDirectory         - Number of minutes to wait between scanning Source directory folders for 'Ready' file. `
+    -CheckDirectorySilent   - Flag to suppress the 'Sleeping for $CheckDirectory mins.' output in terminal. `
+    -Movflags               - Set FFmpeg -movflags switch. `
+    -Notify                 - Send script updates to discord webhook.
+                                Example             : 'username','https://discord.com/api/webhooks/yourwebhookhere'
+                                Example from file   : 'file','webhookfile.ext'`n `
 Example: `
     ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed'`n"
     Return
@@ -193,15 +213,17 @@ function Exiting {
 }
 If ($help) { Help ; Exiting -Reason "Show Help." -ExitCode 3 }
 # Remove trailing whitespace
-$Source = $Source.TrimEnd()
-$Destination = $Destination.TrimEnd()
-$Processed = $Processed.TrimEnd()
-$SourceExt = $SourceExt.TrimEnd()
-$DestinationExt = $DestinationExt.TrimEnd()
-$Ready = $Ready.TrimEnd()
-$Preset1 = $Preset1.TrimEnd()
-$Preset2 = $Preset2.TrimEnd()
-$Movflags = $Movflags.TrimEnd()
+$Source = $Source.Trim()
+$Destination = $Destination.Trim()
+$Processed = $Processed.Trim()
+$SourceExt = $SourceExt.Trim()
+$DestinationExt = $DestinationExt.Trim()
+$Ready = $Ready.Trim()
+$Preset1 = $Preset1.Trim()
+$Preset2 = $Preset2.Trim()
+$Movflags = $Movflags.Trim()
+$userName = ""
+$webHookUri = ""
 If ($Copying) { "Moveflags: '{0}'`n" -f $Movflags } Else { "Preset1: '{0}'`nPreset2: '{1}'`n" -f $Preset1,$Preset2 }
 
 # TODO ...
@@ -244,11 +266,86 @@ If ($Copying) {
         Exiting -Reason "'HandBrake CLI' not installed.`nInstall 'HandBrake CLI' to copy files." -Exitcode 2
     }
 }
+function Send-Update {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [String]$Content
+    )
+    $content = $Content
+    $Body = @{
+        'username' = $userName
+        'content' = $content
+    }
+    Try {
+        Invoke-RestMethod -Uri $webHookUri -Method 'post' -Body $Body
+    } Catch {
+        "Error sending post to 'webHookUri'.`n  StatusCode: {0}`n  StatusDescription: {1}`n" -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.StatusDescription
+        Add-Content -Path "$log" -Value "`n------------`nError sending post to 'webHookUri'.`n  StatusCode: '$($_.Exception.Response.StatusCode.value__)'`n  StatusDescription: '$($_.Exception.Response.StatusDescription)'`n------------`n"
+    }
+}
+# Setup Notify if exist.
+[Boolean]$sendNote = $false
+If ( $Notify.Length -gt 1 ) {
+    If ( $Notify[0] -ine "file") {
+        # Handle direct username, webhook entry.
+        If ( $Notify[0] -imatch "^https\:.*discord\.com.*api" ) {
+            "Found 'username'."
+            $userName = $Notify[1].Trim()
+            "Found 'webhookUri'."
+            $webHookUri = $Notify[0].Trim()
+        } Else {
+            "Found 'username'."
+            $userName = $Notify[0].Trim()
+            "Found 'webhookUri'."
+            $webHookUri = $Notify[1].Trim()
+        }
+    } Else {
+        "Checking in '{0}' for username and webhookUri." -f $Notify[1]
+        # Handle loading from file.
+        # Check if file exists.
+        If ( Test-Path -Path $Notify[1].Trim() ) {
+            # File exists.
+            ForEach ( $line In $(Get-Content -Path $Notify[1]) ) {
+                $temp1, $temp2 = $($line -split "=", 2).Trim()
+                $temp1, $temp2 = $($temp1, $temp2).Trim("'")
+                $temp1, $temp2 = $($temp1, $temp2).Trim('"')
+                If ( $temp1 -ieq "username" ) {
+                    "Found 'username'."
+                    $userName = $temp2
+                } ElseIf ( $temp1 -ieq "webhookUri" ) {
+                    "Found 'webhookUri'."
+                    $webHookUri = $temp2
+                }
+            }
+        }
+    }
+    If ( $userName -ine "" -and $webHookUri -ine "" ) {
+        Add-Content -Path "$log" -Value "`n------------`nNotify enabled.`nFound: 'username'`nFound: 'webhookUri'`n------------`n"
+        $sendNote = $true
+        If ($Copying) {
+            Send-Update -Content "handbrake.ps1 started copying."
+        } Else {
+            Send-Update -Content "handbrake.ps1 started encoding."
+        }
+    } Else {
+        Add-Content -Path "$log" -Value "`n------------`nNotify not enabled.`n"
+        If ($userName -ieq "") {
+            "'username' not found."
+            Add-Content -Path "$log" -Value "'username' not found.`n"
+        }
+        If ($webHookUri -ieq "") {
+            "'webhookUri' not found."
+            Add-Content -Path "$log" -Value "'webhookUri' not found.`n"
+        }
+        Add-Content -Path "$log" -Value "------------`n"
+    }
+}
 function Get-ReadyDirectory {
-    [String[]]$readyDirectories = Get-ChildItem -Path $Source -Recurse -Include $Ready | Split-Path -Parent
-    ForEach ( $directory In $readyDirectories ) {
+    ForEach ( $directory In $(Get-ChildItem -Path $Source -Recurse -Include $Ready | Split-Path -Parent) ) {
         $readyDirectory = Split-Path -Path $directory -Leaf
         "`nCopying directory tree for '{0}'..." -f $directory
+        If ($sendNote) { Send-Update -Content "Copying directory tree for '$readyDirectory'." }
         Robocopy "$directory" "$Destination`\$readyDirectory" /mt:$($RobocopyThreads) /e /z /xf "*.*" /xx /unilog+:$log
         # Find mkv files.
         ForEach ( $sfp In $(Get-ChildItem -Path "$directory" -Recurse -Include "*.$SourceExt") ) {
@@ -331,14 +428,15 @@ function Get-ReadyDirectory {
                 } Else { Exiting -Reason "No preset found for Preset1: '$Preset1'." -Exitcode 1 }
             }
         }
-        # Move processed folder to $Processed.
+        # Move folder to $Processed.
         Move-Item -Path "$directory" -Destination "$Processed"
         "`nMoved '{0}' to '{1}'.`n" -f $directory, $Processed
         Add-Content -Path "$log" -Value "`n------------`nMoved '$directory' to '$Processed'.`n------------`n"
-        "Finished Folder : {0}`n" -f $(Get-Date)
-        Add-Content -Path "$log" -Value "`n------------`nFinished Folder : $(Get-Date)`n------------`n"
+        "Finished : {0}`n" -f $(Get-Date)
+        Add-Content -Path "$log" -Value "`n------------`nFinished : $(Get-Date)`n------------`n"
         "Paused for '{0}' mins to allow graceful exit.`n" -f $Pause
         Add-Content -Path "$log" -Value "`n------------`nPaused for '$Pause' mins to allow graceful exit.`n------------`n"
+        If ($sendNote) { Send-Update -Content "Finished '$readyDirectory': $(Get-Date)`nPaused for '$Pause' mins." }
         Start-Sleep -Seconds ($Pause * 60)
     }
 }

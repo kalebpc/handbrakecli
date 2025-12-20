@@ -84,7 +84,7 @@
     NONE
 
 .EXAMPLE
-./folderBuilder -Path 'G:\Videos\Movies'
+./folderHelper -Path 'G:\Videos\Movies'
 Starting Directory tree :       G:\Videos\Movies
                                     movie (2005) - trailer.mp4
                                     movie (2005).mp4
@@ -98,7 +98,7 @@ Ending Directory tree   :       G:\Videos\Movies
                                         Movie Name (2008).ext
 
 .EXAMPLE
-./folderBuilder -Path 'G:\Videos\Movies' -Rename
+./folderHelper -Path 'G:\Videos\Movies' -Rename
 Starting Directory tree :       G:\Videos\Movies
                                     movienamehere(4000).txt
                                 
@@ -132,12 +132,12 @@ param(
 )
 function Help {
    "Usage: `
-    ./folderBuilder -Path [options] `
-    ./folderBuilder -Help`n `
+    ./folderHelper -Path [options] `
+    ./folderHelper -Help`n `
 Options: `
     -Rename             - Rename file inside directory to same as directory.`n `
 Examples: `
-    ./folderBuilder -Path 'G:\Videos\Movies' `
+    ./folderHelper -Path 'G:\Videos\Movies' `
         Starting Directory tree :   G:\Videos\Movies `
                                         movie (2005) - trailer.mp4 `
                                         movie (2005).mp4 `
@@ -148,7 +148,7 @@ Examples: `
                                             movie (2005).mp4`n `
                                         Movie Name (2008) `
                                             Movie Name (2008).ext`n `
-    ./folderBuilder -Path 'G:\Videos\Movies' -Rename `
+    ./folderHelper -Path 'G:\Videos\Movies' -Rename `
         Starting Directory tree :   G:\Videos\Movies `
                                         movienamehere(4000).txt`n `
                                         movie (2005) `
@@ -201,7 +201,7 @@ If ($Rename) {
                 If ($count -eq 1) {
                     $newName = "$($folder.Name)" + "$($file.FullName -replace '^.*\.','.')"
                 } Else {
-                    $newName = "$($folder.Name)" + " ($count)" + "$($file.FullName -replace '^.*\.','.')"
+                    $newName = "$($folder.Name)" + "($count)" + "$($file.FullName -replace '^.*\.','.')"
                 }
                 Rename-Item -Path "$($file.FullName)" -NewName "$newName"
                 $count+=1
@@ -254,7 +254,7 @@ Expected examples : 'Movie Name Here (YEAR).ext' `
                     'Movie Name Here (YEAR)-extras.ext'`n `
 NOTE:   This script will scrap ALL text after '(YEAR)'. `
 Examples: `
-    ./folderBuilder -Path 'G:\Videos\Movies' `
+    ./folderHelper -Path 'G:\Videos\Movies' `
         Starting Directory tree :   G:\Videos\Movies `
                                         movie (2005) - trailer.mp4 `
                                         movie (2005).mp4 `
@@ -266,7 +266,7 @@ Examples: `
                                       `
                                         Movie Name (2008) `
                                             Movie Name (2008).ext`n `
-    ./folderBuilder -Path 'G:\Videos\Movies' -Rename `
+    ./folderHelper -Path 'G:\Videos\Movies' -Rename `
         Starting Directory tree :   G:\Videos\Movies `
                                         movienamehere(4000).txt `
                                       `
