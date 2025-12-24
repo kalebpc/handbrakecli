@@ -1,0 +1,63 @@
+
+TOPIC
+    about_Confirm-UserWebHook
+
+SHORT DESCRIPTION
+
+    Verifies user input for setting username and webhookuri.
+
+PARAMETER ArgumentList
+
+    <string[]>
+    Send script updates to discord webhook.
+        Example:    'username','webhookUri'.
+        Example:    'file','G:\path\to\webhookfile.ext'.   Loads 'username' and 'webhookUri' from file.
+                    
+        webhookfile.ext contents:   'username' = 'yourusernamehere'
+                                    'webhookUri' = 'https://discord.com/api/webhooks/yourwebhookhere'
+
+EXAMPLES
+
+    $result = Confirm-UserWebHook -ArgumentList 'username','webhookuri'
+    
+    Output will be one of the following:
+
+        [Bool]$result.Verified = $true
+        [String]$result.Username = username
+        [String]$result.Webhookuri = webhookuri
+
+        [Bool]$result.Verified = $false
+        [String]$result.Username = ''
+        [String]$result.Webhookuri = ''
+
+        [Bool]$result.Verified = $false
+        [String]$result.Username = 'username'
+        [String]$result.Webhookuri = ''
+
+        [Bool]$result.Verified = $false
+        [String]$result.Username = ''
+        [String]$result.Webhookuri = 'webhookuri'
+
+    $result = Confirm-UserWebHook -ArgumentList 'file','G:\path\to\webhookfile.ext'
+
+    Output will be one of the following:
+
+        [Bool]$result.Verified = $true
+        [String]$result.Username = username
+        [String]$result.Webhookuri = webhookuri
+
+        [Bool]$result.Verified = $false
+        [String]$result.Username = ''
+        [String]$result.Webhookuri = ''
+
+        [Bool]$result.Verified = $false
+        [String]$result.Username = 'username'
+        [String]$result.Webhookuri = ''
+
+        [Bool]$result.Verified = $false
+        [String]$result.Username = ''
+        [String]$result.Webhookuri = 'webhookuri'
+
+KEYWORDS
+
+    Confirm-UserWebHook Webhook username uri

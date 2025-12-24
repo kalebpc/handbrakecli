@@ -1,0 +1,38 @@
+
+TOPIC
+    about_Exit-Script
+
+SHORT DESCRIPTION
+
+PARAMETER Reason
+    <string>
+
+PARAMETER Exitcode
+    <int32>
+    Enter single digit for switching how the code exits.
+
+PARAMETER ScriptHelp
+    <string>
+    Path to script help function.
+
+EXAMPLES
+
+    Exit-Script -Reason "Reason for exiting here." -Exitcode '0'
+        
+        Output: Print success, exitcode and exit.
+
+    Exit-Script -Reason "Reason for exiting here." -Exitcode '1' -ScriptHelp "path/to/script.ps1"
+    
+        Output: Print reason, help, exitcode and exit.
+
+    Exit-Script -Reason "Reason for exiting here." -Exitcode '2'`
+    
+        Output: Print reason, exitcode and exit.
+
+    Exit-Script -Reason "Reason for exiting here." -Exitcode 'Anynumber >= 3'
+
+        Output: Print nothing and exit.
+
+KEYWORDS
+
+    Exit-Script Exit
