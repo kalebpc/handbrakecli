@@ -130,6 +130,8 @@ param(
     [Parameter(ParameterSetName = "Path", HelpMessage = "Flag to rename file inside directory to same as directory.")]
     [Switch]$Rename
 )
+Import-Module -Name "./modules/Exit-Script"
+function Complete-Path { param([String]$P) return "$PWD$($P.Substring(1))" }
 function Help {
    "Usage: `
     ./folderHelper -Path [options] `
@@ -165,24 +167,11 @@ Examples: `
                                             Movie Name (2008).ext`n`n"
     Return
 }
-function Exiting {
-    [CmdletBinding()]
-    param(
-        [String]$Reason,
-        [Int32]$Exitcode
-    )
-    Switch ($Exitcode) {
-        0 { "`nFinished Successfully.`n`nExit 0" ; Exit }
-        1 { "`n{0}`n" -f $Reason ; Help ; "`nExit {0}" -f $Exitcode ; Exit }
-        2 { "`n{0}`n" -f $Reason ; "`nExit {0}" -f $Exitcode ; Exit }
-        Default { Exit }
-    }
-}
-If ($help) { Help ; Exiting -Reason "Show Help." -ExitCode 3 }
+If ($help) { Help ; Exit-Script -Reason "Show Help." -ExitCode 3 }
 # Remove trailing whitespace
 $Path = $Path.TrimEnd()
 # Verify path.
-If ( $Path -ine "" ) { If (Test-Path -Path $Path) { "Verified Path." } Else { Exiting -Reason "System could not find '$Path'." -Exitcode 1 } } Else { Exiting -Reason "System could not find '$Path'." -Exitcode 1 }
+If ( $Path -ine "" ) { If (Test-Path -Path $Path) { "Verified Path." } Else { Exit-Script -Reason "System could not find '$Path'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./folderHelper.ps1") } } Else { Exit-Script -Reason "System could not find '$Path'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./folderHelper.ps1") }
 # Complete paths.
 function Complete-Path { param([String]$P) return "$PWD$($P.Substring(1))" }
 If ( $(Split-Path -Path $Path -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Path = Complete-Path -P $Path ; "Done." }
