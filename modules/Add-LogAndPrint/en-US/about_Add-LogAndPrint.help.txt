@@ -1,0 +1,25 @@
+
+TOPIC
+    about_Add-LogAndPrint
+
+SHORT DESCRIPTION
+
+    Verifies user input for setting username and webhookuri.
+
+PARAMETER Path
+
+    <string>
+    Enter path to log file.
+
+PARAMETER Content
+
+    <string>
+    Enter string for printing and adding to log file.
+
+EXAMPLES
+
+    Add-LogAndPrint -Path 'drive:\path\to\log\file' -Content 'Message to log and print.'
+
+KEYWORDS
+
+    Add-LogAndPrint log Write-Host Write-Output
