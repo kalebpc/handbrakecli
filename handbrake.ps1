@@ -179,9 +179,12 @@ param(
     [Parameter(ParameterSetName = "Copying", HelpMessage="Send script updates to discord webhook. Example: 'username','webhookUri' ; Example: 'file','webhookfile.ext' to load 'username' and 'webhookUri' from file.")]
     [String[]]$Notify
 )
+# Get modules.
+Import-Module -Name "./modules/Exit-Script","./modules/Send-Message","./modules/Confirm-UserWebHook","./modules/Add-LogAndPrint"
+function Complete-Path { param([String]$P) return "$PWD$($P.Substring(1))" }
 function Help {
    "Usage: `
-    ./handbrake -Encoding -Preset <string[]> -Source <string> -Destination <string> -SourceExt <string> -DestinationExt <string> -Ready <string> -Processed <string> [Options] `
+    ./handbrake -Encoding -Preset1 <string> [-Preset2 <string>] -Source <string> -Destination <string> -SourceExt <string> -DestinationExt <string> -Ready <string> -Processed <string> [Options] `
     ./handbrake -Copying -Source <string> -Destination <string> -SourceExt <string> -DestinationExt <string> -Ready <string> -Processed <string> [Options] `
     ./handbrake -Help`n `
 
@@ -195,23 +198,10 @@ Options: `
                                 Example             : 'username','https://discord.com/api/webhooks/yourwebhookhere'
                                 Example from file   : 'file','webhookfile.ext'`n `
 Example: `
-    ./handbrake -Encoding -Preset 'Roku 1080p30','Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed'`n"
+    ./handbrake -Encoding -Preset1 'Roku 1080p30' -Preset2 'Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed'`n"
     Return
 }
-function Exiting {
-    [CmdletBinding()]
-    param(
-        [String]$Reason,
-        [Int32]$Exitcode
-    )
-    Switch ($Exitcode) {
-        0 { "`nFinished Successfully.`n`nExit 0" ; Exit }
-        1 { "`n{0}`n" -f $Reason ; Help ; "`nExit {0}" -f $Exitcode ; Exit }
-        2 { "`n{0}`n" -f $Reason ; "`nExit {0}" -f $Exitcode ; Exit }
-        Default { Exit }
-    }
-}
-If ($help) { Help ; Exiting -Reason "Show Help." -ExitCode 3 }
+If ($help) { Help ; Exit-Script -Reason "Show Help." -ExitCode 3 }
 # Remove trailing whitespace
 $Source = $Source.Trim()
 $Destination = $Destination.Trim()
@@ -230,179 +220,117 @@ If ($Copying) { "Moveflags: '{0}'`n" -f $Movflags } Else { "Preset1: '{0}'`nPres
 # Need to find a way to figure out if destination is in the same path of source.
 # There is a issue where if the destination folder is in same directory of the source causes a recursion fault.
 
+# TODO ...
+# Add keeping track of how long a folder takes to finish. Notify, print, and log calculated time.
+
 # Set install path.
 [String]$installPath = "$ENV:LOCALAPPDATA\Scripts\HandBrake"
 [String]$log = "$installPath\logs\handbrake.log"
 # Verify paths.
 If ( ! $(Test-Path -Path $installPath) ) { New-Item -ItemType "Directory" -Path $installPath -Force }
-If ( $Source -ne "" ) { If ( ! $(Test-Path -Path $Source) ) { Exiting -Reason "System cannot find '$Source'." -Exitcode 1 } Else { "Verified 'Source' path." } } Else { Exiting -Reason "System cannot find '$Source'." -Exitcode 1 }
-If ( $Destination -ne "" ) { If ( ! $(Test-Path -Path $Destination) ) { New-Item -ItemType "Directory" -Path $Processed -Force } Else { "Verified 'Destination' path." } } ELSE { Exiting -Reason "System cannot find '$Destination'." -Exitcode 1 }
+If ( $Source -ne "" ) { If ( ! $(Test-Path -Path $Source) ) { Exit-Script -Reason "System cannot find '$Source'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrake.ps1") } Else { "Verified 'Source' path." } } Else { Exit-Script -Reason "System cannot find '$Source'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrake.ps1") }
+If ( $Destination -ne "" ) { If ( ! $(Test-Path -Path $Destination) ) { New-Item -ItemType "Directory" -Path $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { Exit-Script -Reason "System cannot find '$Destination'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrake.ps1") }
 # Complete paths.
-function Complete-Path { param([String]$P) return "$PWD$($P.Substring(1))" }
 If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
 If ( $(Split-Path -Path $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
 # Create logs path.
 If ( ! $(Test-Path -Path $(Split-Path -Path $log -Parent)) ) { New-Item -ItemType "Directory" -Path $(Split-Path -Path $log -Parent) -Force } Else { "Verified 'logs' path." }
 # Create processed path.
-If ( $Processed -ne "" ) { If ( ! $(Test-Path -Path $Processed) ) { New-Item -ItemType "Directory" -Path $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { Exiting -Reason "System cannot find '$Processed'." -Exitcode 1 }
+If ( $Processed -ne "" ) { If ( ! $(Test-Path -Path $Processed) ) { New-Item -ItemType "Directory" -Path $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { Exit-Script -Reason "System cannot find '$Processed'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrake.ps1") }
+# Validate extensions input.
+If ( $SourceExt -ieq "" -or $DestinationExt -ieq "" ) { Exit-Script -Reason "SourceExt '$SourceExt' or DestinationExt '$DestinationExt' is empty string." -ExitCode 1 -ScriptHelp $(Complete-Path -P "./handbrake.ps1") }
+
+# TODO ...
+# Need to add input validation for file extensions that are supported by HandBrakeCLI.
+
 # Verify ffmpeg installed for copying.
 If ($Copying) {
+    Add-LogAndPrint -Path $log -Content "Checking for 'FFmpeg'..."
     If ( $(Get-Package | Where { $_.Name -like "*FFmpeg"}).Name -like "*FFmpeg" ) {
-        "Found 'FFmpeg'.`n"
-        Add-Content -Path "$log" -Value "`n------------`nFound 'FFmpeg'.`n------------`n"
+        Add-LogAndPrint -Path $log -Content "Found 'FFmpeg'"
     } Else {
-        "'FFmpeg' not found.`n"
-        Add-Content -Path "$log" -Value "`n------------`n'FFmpeg' not found.`n------------`n"
-        Exiting -Reason "FFmpeg not installed.`nInstall 'FFmpeg' to copy files." -Exitcode 2
+        Add-LogAndPrint -Path $log -Content "'FFmpeg' not found."
+        Exit-Script -Reason "FFmpeg not installed.`nInstall 'FFmpeg' to copy files." -Exitcode 2
     }
 } Else {
+    Add-LogAndPrint -Path $log -Content "Checking for 'HandBrake CLI'..."
     # Verify handbrakeCLI installed for encoding.
     If ( $(Get-Package | Where { $_.Name -ieq "HandBrake CLI"}).Name -ieq "HandBrake CLI" ) {
-        "Found 'HandBrake CLI'.`n"
-        Add-Content -Path "$log" -Value "`n------------`nFound 'HandBrake CLI'.`n------------`n"
+        Add-LogAndPrint -Path $log -Content "Found 'HandBrake CLI'"
     } Else {
-        "'HandBrake CLI' not found.`n"
-        Add-Content -Path "$log" -Value "`n------------`n'HandBrake CLI' not found.`n------------`n"
-        Exiting -Reason "'HandBrake CLI' not installed.`nInstall 'HandBrake CLI' to copy files." -Exitcode 2
+        Add-LogAndPrint -Path $log -Content "'HandBrake CLI' not found."
+        Exit-Script -Reason "'HandBrake CLI' not installed.`nInstall 'HandBrake CLI' to copy files." -Exitcode 2
     }
 }
-function Send-Update {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [String]$Content
-    )
-    $content = $Content
-    $Body = @{
-        'username' = $userName
-        'content' = $content
-    }
-    Try {
-        Invoke-RestMethod -Uri $webHookUri -Method 'post' -Body $Body
-    } Catch {
-        "Error sending post to 'webHookUri'.`n  StatusCode: {0}`n  StatusDescription: {1}`n" -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.StatusDescription
-        Add-Content -Path "$log" -Value "`n------------`nError sending post to 'webHookUri'.`n  StatusCode: '$($_.Exception.Response.StatusCode.value__)'`n  StatusDescription: '$($_.Exception.Response.StatusDescription)'`n------------`n"
-    }
-}
-# Setup Notify if exist.
+# Setup Notify.
 [Boolean]$sendNote = $false
-If ( $Notify.Length -gt 1 ) {
-    If ( $Notify[0] -ine "file") {
-        # Handle direct username, webhook entry.
-        If ( $Notify[0] -imatch "^https\:.*discord\.com.*api" ) {
-            "Found 'username'."
-            $userName = $Notify[1].Trim()
-            "Found 'webhookUri'."
-            $webHookUri = $Notify[0].Trim()
-        } Else {
-            "Found 'username'."
-            $userName = $Notify[0].Trim()
-            "Found 'webhookUri'."
-            $webHookUri = $Notify[1].Trim()
-        }
-    } Else {
-        "Checking in '{0}' for username and webhookUri." -f $Notify[1]
-        # Handle loading from file.
-        # Check if file exists.
-        If ( Test-Path -Path $Notify[1].Trim() ) {
-            # File exists.
-            ForEach ( $line In $(Get-Content -Path $Notify[1]) ) {
-                $temp1, $temp2 = $($line -split "=", 2).Trim()
-                $temp1, $temp2 = $($temp1, $temp2).Trim("'")
-                $temp1, $temp2 = $($temp1, $temp2).Trim('"')
-                If ( $temp1 -ieq "username" ) {
-                    "Found 'username'."
-                    $userName = $temp2
-                } ElseIf ( $temp1 -ieq "webhookUri" ) {
-                    "Found 'webhookUri'."
-                    $webHookUri = $temp2
-                }
-            }
-        }
-    }
-    If ( $userName -ine "" -and $webHookUri -ine "" ) {
-        Add-Content -Path "$log" -Value "`n------------`nNotify enabled.`nFound: 'username'`nFound: 'webhookUri'`n------------`n"
+If ( $Notify.Length -gt 1) {
+    Add-LogAndPrint -Path $log -Content "Setting up discord webhook..."
+    # Truncate Notify to 2 elements.
+    $Notify = $Notify[0..1]
+    # Complete paths.
+    If ( $(Split-Path -Path $Notify[0] -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Notify[0] = Complete-Path -P $Notify[0] ; "Done." }
+    If ( $(Split-Path -Path $Notify[1] -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Notify[1] = Complete-Path -P $Notify[1] ; "Done." }
+    [PSCustomObject]$result = Confirm-UserWebHook -ArgumentList $Notify
+    If ( $result.Verified -eq $true ) {
         $sendNote = $true
+        Add-LogAndPrint -Path $log -Content "Notify enabled.`nFound: 'username'`nFound: 'webhookUri'"
         If ($Copying) {
-            Send-Update -Content "handbrake.ps1 started copying."
+            $response = Send-Message -Content "handbrake.ps1 started copying." -Username $result.Username -Webhookuri $result.Webhookuri
         } Else {
-            Send-Update -Content "handbrake.ps1 started encoding."
+            $response = Send-Message -Content "handbrake.ps1 started encoding." -Username $result.Username -Webhookuri $result.Webhookuri
         }
+        # Print and log error if encountered.
+        If ( $response -ilike "*Error*" ) { Add-LogAndPrint -Path $log -Content $response }
     } Else {
-        Add-Content -Path "$log" -Value "`n------------`nNotify not enabled.`n"
-        If ($userName -ieq "") {
-            "'username' not found."
-            Add-Content -Path "$log" -Value "'username' not found.`n"
-        }
-        If ($webHookUri -ieq "") {
-            "'webhookUri' not found."
-            Add-Content -Path "$log" -Value "'webhookUri' not found.`n"
-        }
-        Add-Content -Path "$log" -Value "------------`n"
+        $temp1, $temp2 = '',''
+        If ( $result.Username -ieq "" ) { $temp1 = "`n'username' not found." }
+        If ( $result.Webhookuri -ieq "" ) { $temp2 = "`n'webhookUri' not found." }
+        Add-LogAndPrint -Path $log -Content "Notify not enabled.$temp1$temp2"
     }
 }
-function Get-ReadyDirectory {
+function Run-Loop {
     ForEach ( $directory In $(Get-ChildItem -Path $Source -Recurse -Include $Ready | Split-Path -Parent) ) {
         $readyDirectory = Split-Path -Path $directory -Leaf
-        "`nCopying directory tree for '{0}'..." -f $directory
-        If ($sendNote) { Send-Update -Content "Copying directory tree for '$readyDirectory'." }
+        If ($sendNote) {
+            $response = Send-Message -Content "Copying directory tree for '$readyDirectory'." -Username $result.Username -Webhookuri $result.Webhookuri
+            If ( $response -ilike "*Error*" ) { Add-LogAndPrint -Path $log -Content $response }
+        }
+        Add-LogAndPrint -Path $log -Content "Copying directory tree for '$directory'..."
+        # Copy directory tree.
         Robocopy "$directory" "$Destination`\$readyDirectory" /mt:$($RobocopyThreads) /e /z /xf "*.*" /xx /unilog+:$log
         # Find mkv files.
-        ForEach ( $sfp In $(Get-ChildItem -Path "$directory" -Recurse -Include "*.$SourceExt") ) {
-            $in = $sfp.FullName
-            $out = $($sfp.FullName).Replace($Source,$Destination)
-            $out = $out.Replace($SourceExt,$DestinationExt)
+        ForEach ( $file In $(Get-ChildItem -Path "$directory" -Recurse -Include "*$SourceExt") ) {
+            $in = $file.FullName
+            $out = $($($file.FullName).Replace($Source,$Destination)).Replace($SourceExt,$DestinationExt)
+            # $out = $out.Replace($SourceExt,$DestinationExt)
             If ($Copying) {
-                function Print-Output {
-                    [CmdletBinding()]
-                    param(
-                        [Switch]$CC,
-                        [Switch]$MF
-                    )
-                    If ($CC) {
-                        If ($MF) {
-                            "`nCopying - Container Change - Movflags : {2}`nin  : {0}`nout : {1}" -f $in, $out, $Movflags
-                            Add-Content -Path "$log" -Value "`n------------`nCopying - Container Change - Movflags: $Movflags`nin: '$in'`nout: '$out'.`n------------`n"
-                        } Else {
-                            "`nCopying - Container Change :`nin  : {0}`nout : {1}" -f $in, $out
-                            Add-Content -Path "$log" -Value "`n------------`nCopying - Container Change:`nin: '$in'`nout: '$out'.`n------------`n"
-                        }
-                    } Else {
-                        If ($MF) {
-                            "`nCopying - Movflags : {2}`nin  : {0}`nout : {1}" -f $in, $out, $Movflags
-                            Add-Content -Path "$log" -Value "`n------------`nCopying - Movflags: $Movflags`nin: '$in'`nout: '$out'.`n------------`n"
-                        } Else {
-                            "`nCopying :`nin  : {0}`nout : {1}" -f $in, $out
-                            Add-Content -Path "$log" -Value "`n------------`nCopying:`nin: '$in'`nout: '$out'.`n------------`n"
-                        }
-                    }
-                }
                 If ($SourceExt -ieq $DestinationExt) {
                     # Copy without changing container.
                     If ($Movflags -ine "") {
                         If ($DestinationExt -ieq "mp4") {
-                            Print-Output -MF
+                           Add-LogAndPrint -Path $log -Content "Copying - Movflags: $Movflags`nin  : '$in'`nout : '$out'."
                             ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s mov_text -movflags "$Movflags" "$out"
                         } Else {
-                            Print-Output -MF
+                            Add-LogAndPrint -Path $log -Content "Copying - Movflags: $Movflags`nin  : '$in'`nout : '$out'."
                             ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s copy -movflags "$Movflags" "$out"
                         }
                     } Else {
-                        Print-Output
+                        Add-LogAndPrint -Path $log -Content "Copying:`nin  : '$in'`nout : '$out'."
                         ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s copy "$out"
                     }
                 } Else {
                     # Change containers.
                     If ($Movflags -ine "") {
                         If ($DestinationExt -ieq "mp4") {
-                            Print-Output -CC -MF
+                            Add-LogAndPrint -Path $log -Content "Copying - Container Change - Movflags: $Movflags`nin  : '$in'`nout : '$out'."
                             ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s mov_text -movflags "$Movflags" "$out"
                         } Else {
-                            Print-Output -CC -MF
+                            Add-LogAndPrint -Path $log -Content "Copying - Container Change - Movflags: $Movflags`nin  : '$in'`nout : '$out'."
                             ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s copy -movflags "$Movflags" "$out"
                         }
                     } Else {
-                        Print-Output -CC
+                        Add-LogAndPrint -Path $log -Content "Copying - Container Change:`nin  : '$in'`nout : '$out'."
                         ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s copy "$out"
                     }
                 }
@@ -412,36 +340,37 @@ function Get-ReadyDirectory {
                     If ( $Preset2 -ine "" ) {
                         # TODO ... Add config where ANY subfolders are processed with Preset2 but direct folder uses Preset1.
                         If ( $in -imatch "extras" ) {
-                            "Encoding Extras: {2}`nin  : {0}`nout : {1}`n" -f $in, $out, $Preset2
-                            Add-Content -Path "$log" -Value "`n------------`Encoding Extras: $Preset2`nin: '$in'`nout: '$out'.`n------------`n"
+                            Add-LogAndPrint -Path $log -Content "Encoding Extras: $Preset2`nin  : '$in'`nout : '$out'."
                             HandBrakeCLI --preset-import-gui -Z "$Preset2" -i "$in" -o "$out"
                         } Else {
-                            "Encoding Movie/trailer: {2}`nin  : {0}`nout : {1}`n" -f $in, $out, $Preset1
-                            Add-Content -Path "$log" -Value "`n------------`Encoding Movie/trailer: $Preset1`nin: '$in'`nout: '$out'.`n------------`n"
+                            Add-LogAndPrint -Path $log -Content "Encoding Movie/trailer: $Preset1`nin  : '$in'`nout : '$out'."
                             HandBrakeCLI --preset-import-gui -Z "$Preset1" -i "$in" -o "$out"
                         }
                     } Else {
-                        "Encoding: {2}`nin  : {0}`nout : {1}`n" -f $in, $out, $Preset1
-                        Add-Content -Path "$log" -Value "`n------------`Encoding: $Preset1`nin: '$in'`nout: '$out'.`n------------`n"
+                        Add-LogAndPrint -Path $log -Content "Encoding: $Preset1`nin  : '$in'`nout : '$out'."
                         HandBrakeCLI --preset-import-gui -Z "$Preset1" -i "$in" -o "$out"
                     }
-                } Else { Exiting -Reason "No preset found for Preset1: '$Preset1'." -Exitcode 1 }
+                } Else { Exit-Script -Reason "No preset found for Preset1: '$Preset1'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrake.ps1") }
             }
         }
+        
+        # TODO ...
+        # Need to figure out how to know when an encode has failed or succeeded.
+
         # Move folder to $Processed.
         Move-Item -Path "$directory" -Destination "$Processed"
-        "`nMoved '{0}' to '{1}'.`n" -f $directory, $Processed
-        Add-Content -Path "$log" -Value "`n------------`nMoved '$directory' to '$Processed'.`n------------`n"
-        "Finished : {0}`n" -f $(Get-Date)
-        Add-Content -Path "$log" -Value "`n------------`nFinished : $(Get-Date)`n------------`n"
-        "Paused for '{0}' mins to allow graceful exit.`n" -f $Pause
-        Add-Content -Path "$log" -Value "`n------------`nPaused for '$Pause' mins to allow graceful exit.`n------------`n"
-        If ($sendNote) { Send-Update -Content "Finished '$readyDirectory': $(Get-Date)`nPaused for '$Pause' mins." }
+        Add-LogAndPrint -Path $log -Content "Moved '$directory' to '$Processed'."
+        Add-LogAndPrint -Path $log -Content "Finished '$readyDirectory'."
+        Add-LogAndPrint -Path $log -Content "Paused for '$Pause' mins to allow graceful exit."
+        If ($sendNote) {
+            $response = Send-Message -Content "Finished '$readyDirectory': $(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")`nPaused for '$Pause' mins." -Username $result.Username -Webhookuri $result.Webhookuri
+            If ( $response -ilike "*Error*" ) { Add-LogAndPrint -Path $log -Content $response }
+        }
         Start-Sleep -Seconds ($Pause * 60)
     }
 }
 If ($CheckDirectorySilent) {
-    While ($true) { Get-ReadyDirectory ; Start-Sleep -Seconds ($CheckDirectory * 60) }
+    While ($true) { Run-Loop ; Start-Sleep -Seconds ($CheckDirectory * 60) }
 } Else {
-    While ($true) { Get-ReadyDirectory ; "Sleeping for {0} mins." -f $CheckDirectory ; Start-Sleep -Seconds ($CheckDirectory * 60) }
+    While ($true) { Run-Loop ; "Sleeping for {0} mins." -f $CheckDirectory ; Start-Sleep -Seconds ($CheckDirectory * 60) }
 }
