@@ -179,8 +179,133 @@ param(
     [Parameter(ParameterSetName = "Copying", HelpMessage="Send script updates to discord webhook. Example: 'username','webhookUri' ; Example: 'file','webhookfile.ext' to load 'username' and 'webhookUri' from file.")]
     [String[]]$Notify
 )
-# Get modules.
-Import-Module -Name "./modules/Exit-Script","./modules/Send-Message","./modules/Confirm-UserWebHook","./modules/Add-LogAndPrint"
+
+
+
+function Exit-Script {
+    [CmdletBinding(DefaultParameterSetName = "Exiting")]
+    param(
+        [Parameter(Mandatory = $true)]
+        [String]$Reason,
+        [Parameter(Mandatory = $true, HelpMessage = "0 = Print success, exitcode and exit.`n1 = Print reason, help, exitcode and exit.`n2 = Print reason, exitcode and exit.`nAny other number = Print nothing and exit.`n")]
+        [Int32]$Exitcode,
+        [Parameter(HelpMessage = "Path to script help function.")]
+        [String]$ScriptHelp
+    )
+    If ( $ScriptHelp -ieq "" -and $Exitcode -eq 1 ) {
+        $Exitcode = 2
+    } Else {
+        $ScriptHelp = $ScriptHelp + " -Help"
+    }
+    Switch ($Exitcode) {
+        # Print success,exitcode and exit
+        0 { "`nFinished Successfully.`n`nExit 0" ; Exit }
+        # Print reason,help,exitcode and exit
+        1 { "`n{0}`n" -f $Reason ; Powershell -C "&{ $ScriptHelp }" ; "`nExit {0}" -f $Exitcode ; Exit }
+        # Print reason,exitcode and exit
+        2 { "`n{0}`n" -f $Reason ; "`nExit {0}" -f $Exitcode ; Exit }
+        # Print nothing and exit
+        Default { Exit }
+    }
+}
+function Add-LogAndPrint {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, HelpMessage = "Message to print to screen and add to log file.")]
+        [String]$Content,
+        [Parameter(HelpMessage = "Path to log file")]
+        [String]$Path
+    )
+    "`n[$(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")] {0}`n" -f $Content
+    If ( $Path -ine "" ) { If ( Test-Path -Path $Path ) { Add-Content -Path $Path -Value "`n------------`n[$(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")] $Content`n------------`n" } Else { "`nError printing to log file." } }
+}
+function Send-Message {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, HelpMessage = "Message to send.")]
+        [String]$Content,
+        [Parameter(Mandatory = $true, HelpMessage = "Discord username.")]
+        [String]$Username,
+        [Parameter(Mandatory = $true, HelpMessage = "Enter webhook https address. Example: 'https://discord.com/api/webhooks/restofyourwebhookhere'.")]
+        [String]$Webhookuri
+    )
+    [String]$response = "Success."
+    $body = @{
+        'username' = $Username
+        'content' = $Content
+    }
+    Try {
+        Invoke-RestMethod -Uri $Webhookuri -Method 'post' -Body $body
+    } Catch {
+        $response = "Error sending post to 'Webhookuri'.`n  StatusCode: {0}`n  StatusDescription: {1}`n" -f $_.Exception.Response.StatusCode.value__, $_.Exception.Response.StatusDescription
+    }
+    return $response
+}
+function Confirm-UserWebHook {
+    [OutputType([PSCustomObject])]
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, HelpMessage = "Example: 'username','webhookUri' ; Example from file: 'file','webhookfile.ext'")]
+        [String[]]$ArgumentList
+    )
+    [PSCustomObject]$result = @{
+        'Verified' = $false
+        'Username' = ''
+        'Webhookuri' = ''
+    }
+    If ( $ArgumentList.Length -gt 1 ) {
+        If ( $ArgumentList[0] -ieq "file" ) {
+            # Check if file exists.
+            If ( Test-Path -Path $ArgumentList[1].Trim() ) {
+                # File exists.
+                ForEach ( $line In $(Get-Content -Path $ArgumentList[1]) ) {
+                    $temp1, $temp2 = $($line -split "=", 2).Trim()
+                    $temp1, $temp2 = $($temp1, $temp2).Trim("'")
+                    $temp1, $temp2 = $($temp1, $temp2).Trim('"')
+                    If ( $temp1 -ieq "username" ) {
+                        "Found 'username'."
+                        $result.Username = $temp2
+                    } ElseIf ( $temp1 -ieq "webhookUri" ) {
+                        "Found 'webhookUri'."
+                        $result.Webhookuri = $temp2
+                    }
+                }
+            }
+        } ElseIf ( $ArgumentList[1] -ieq "file" ) {
+            # Check if file exists.
+            If ( Test-Path -Path $ArgumentList[0].Trim() ) {
+                # File exists.
+                ForEach ( $line In $(Get-Content -Path $ArgumentList[0]) ) {
+                    $temp1, $temp2 = $($line -split "=", 2).Trim()
+                    $temp1, $temp2 = $($temp1, $temp2).Trim("'")
+                    $temp1, $temp2 = $($temp1, $temp2).Trim('"')
+                    If ( $temp1 -ieq "username" ) {
+                        "Found 'username'."
+                        $result.Username = $temp2
+                    } ElseIf ( $temp1 -ieq "webhookUri" ) {
+                        "Found 'webhookUri'."
+                        $result.Webhookuri = $temp2
+                    }
+                }
+            }
+        } Else {
+            # Handle direct username, webhook entry.
+            If ( $ArgumentList[0] -imatch "^https\:.*discord\.com.*api" ) {
+                "Found 'username'."
+                $result.UserName = $ArgumentList[1].Trim()
+                "Found 'webhookUri'."
+                $result.Webhookuri = $ArgumentList[0].Trim()
+            } Else {
+                "Found 'username'."
+                $result.Username = $ArgumentList[0].Trim()
+                "Found 'webhookUri'."
+                $result.Webhookuri = $ArgumentList[1].Trim()
+            }
+        }
+        If ( $result.Username -ine "" -and $result.Webhookuri -ine "" ) { $result.Verified = $true }
+    }
+    return $result
+}
 function Complete-Path { param([String]$P) return "$PWD$($P.Substring(1))" }
 function Help {
    "Usage: `
@@ -201,6 +326,9 @@ Example: `
     ./handbrake -Encoding -Preset1 'Roku 1080p30' -Preset2 'Roku 480p30' -Source 'G:/Downloads' -Destination 'G:/Videos' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed'`n"
     Return
 }
+
+
+
 If ($help) { Help ; Exit-Script -Reason "Show Help." -ExitCode 3 }
 # Remove trailing whitespace
 $Source = $Source.Trim()
@@ -298,7 +426,8 @@ function Run-Loop {
         }
         Add-LogAndPrint -Path $log -Content "Copying directory tree for '$directory'..."
         # Copy directory tree.
-        Robocopy "$directory" "$Destination`\$readyDirectory" /mt:$($RobocopyThreads) /e /z /xf "*.*" /xx /unilog+:$log
+        $options = @("/mt:$($RobocopyThreads)", "/e", "/z", "/xf", "*.*", "/xx", "/unilog+:$log")
+        Robocopy $directory "$Destination`\$readyDirectory" $options
         # Find mkv files.
         ForEach ( $file In $(Get-ChildItem -Path "$directory" -Recurse -Include "*$SourceExt") ) {
             $in = $file.FullName
@@ -309,7 +438,7 @@ function Run-Loop {
                     # Copy without changing container.
                     If ($Movflags -ine "") {
                         If ($DestinationExt -ieq "mp4") {
-                           Add-LogAndPrint -Path $log -Content "Copying - Movflags: $Movflags`nin  : '$in'`nout : '$out'."
+                            Add-LogAndPrint -Path $log -Content "Copying - Movflags: $Movflags`nin  : '$in'`nout : '$out'."
                             ffmpeg -i "$in" -map 0 -c:v copy -c:a copy -c:s mov_text -movflags "$Movflags" "$out"
                         } Else {
                             Add-LogAndPrint -Path $log -Content "Copying - Movflags: $Movflags`nin  : '$in'`nout : '$out'."
@@ -335,20 +464,28 @@ function Run-Loop {
                     }
                 }
             } Else {
+                function Encode {
+                    [CmdletBinding()]
+                    param(
+                        [Parameter(Position = 0)]
+                        [String]$Preset
+                    )
+                    HandBrakeCLI --preset-import-gui -Z $Preset -i $in -o $out
+                }
                 # Encode files.
                 If ( $Preset1 -ine "" ) {
                     If ( $Preset2 -ine "" ) {
                         # TODO ... Add config where ANY subfolders are processed with Preset2 but direct folder uses Preset1.
                         If ( $in -imatch "extras" ) {
                             Add-LogAndPrint -Path $log -Content "Encoding Extras: $Preset2`nin  : '$in'`nout : '$out'."
-                            HandBrakeCLI --preset-import-gui -Z "$Preset2" -i "$in" -o "$out"
+                            Encode $Preset2
                         } Else {
                             Add-LogAndPrint -Path $log -Content "Encoding Movie/trailer: $Preset1`nin  : '$in'`nout : '$out'."
-                            HandBrakeCLI --preset-import-gui -Z "$Preset1" -i "$in" -o "$out"
+                            Encode $Preset1
                         }
                     } Else {
                         Add-LogAndPrint -Path $log -Content "Encoding: $Preset1`nin  : '$in'`nout : '$out'."
-                        HandBrakeCLI --preset-import-gui -Z "$Preset1" -i "$in" -o "$out"
+                        Encode $Preset1
                     }
                 } Else { Exit-Script -Reason "No preset found for Preset1: '$Preset1'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrake.ps1") }
             }
