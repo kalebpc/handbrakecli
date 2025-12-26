@@ -86,24 +86,24 @@ Param(
 )
 
 If ( $Source -ine "" -and $Destination -ine "" ) {
-    If ( ! $(Test-Path -Path $Source ) ) { "System could not find '0'." -f $Source ; Exit }
-    If ( ! $(Test-Path -Path $Destination ) ) { "System could not find '0'." -f $Destination ; Exit }
+    If ( ! $(Test-Path -LiteralPath $Source ) ) { "System could not find '0'." -f $Source ; Exit }
+    If ( ! $(Test-Path -LiteralPath $Destination ) ) { "System could not find '0'." -f $Destination ; Exit }
     # Complete paths.
     function Complete-Path { param([String]$P) return "$PWD$($P.Substring(1))" }
-    If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
-    If ( $(Split-Path -Path $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
+    If ( $(Split-Path -LiteralPath $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
+    If ( $(Split-Path -LiteralPath $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
 }
 # Return list of movies that dont have trailers but there is a matching trailer in movie trailers folder.
 function Get-FolderMatches {
     [System.IO.DirectoryInfo[]]$list = @()
-    ForEach ( $folder In $( Get-ChildItem -Path $Destination -Recurse) ) {
+    ForEach ( $folder In $( Get-ChildItem -LiteralPath $Destination -Recurse) ) {
         If ( $folder.PSIsContainer -and $folder.FullName -match "[0-9]{4}\)$") {
             $count = 0
-            ForEach ( $_ In $(Get-ChildItem -Path $folder.FullName) ) {
+            ForEach ( $_ In $(Get-ChildItem -LiteralPath $folder.FullName) ) {
                 If ( $_.FullName -imatch ".*trailer.*" ) { $count+=1 }
             }
             If ( $count -eq 0 ) {
-                If ( Test-Path -Path $($folder.FullName.Replace($Destination,$Source)) ) {
+                If ( Test-Path -LiteralPath $($folder.FullName.Replace($Destination,$Source)) ) {
                     $list+=$folder
                 }
             }
@@ -116,22 +116,22 @@ function Set-PathDest {
     param(
         [System.IO.DirectoryInfo]$Folder
     )
-    $p = $(Get-ChildItem -Path $Folder.FullName.Replace($Destination,$Source)).FullName
-    return $p, $($Folder.FullName + "\trailer" + $($(Split-Path -Path $p -Leaf) -replace '.*\.','.'))
+    $p = $(Get-ChildItem -LiteralPath $Folder.FullName.Replace($Destination,$Source)).FullName
+    return $p, $($Folder.FullName + "\trailer" + $($(Split-Path -LiteralPath $p -Leaf) -replace '.*\.','.'))
 }
 If ($WhatIf -or $($Copy -eq $false -and $Move -eq $false)) {
     # List missing trailers that would be moved/copied to movie folders.
     $list = Get-FolderMatches
     If ( $list.Length -gt 0 ) {
         ForEach ( $folder In $list ) {
-            # $path, $dest = Set-PathDest -Folder $folder
+            $path, $dest = Set-PathDest -Folder $folder
             If ($Move) {
                 # Print move and delete actions.
-                "Move-Item`n -Path`n $path`n -Destination`n $dest"
-                "Remove-Item`n -Path`n $(Split-Path -Path $path -Parent)`n -Force -Recurse -ErrorAction SilentlyContinue`n"
+                "Move-Item`n -LiteralPath`n {0}`n -Destination`n {1}" -f $path, $dest
+                "Remove-Item`n -LiteralPath`n {0}`n -Force -Recurse -ErrorAction SilentlyContinue`n" -f $(Split-Path -LiteralPath $path -Parent)
             } Else {
                 # Print copy action.
-                "Copy-Item`n -Path`n $path`n -Destination`n $dest`n"
+                "Copy-Item`n -LiteralPath`n {0}`n -Destination`n {1}`n" -f $path, $dest
             }
         }
     }
@@ -142,8 +142,8 @@ If ($WhatIf -or $($Copy -eq $false -and $Move -eq $false)) {
         ForEach ( $folder In $list ) {
             # Move trailers to movie folders and delete folders from 'movie trailers'.
             $path, $dest = Set-PathDest -Folder $folder
-            Move-Item -Path $path -Destination $dest
-            Remove-Item -Path $(Split-Path -Path $path -Parent) -Force -Recurse -ErrorAction SilentlyContinue
+            Move-Item -LiteralPath $path -Destination $dest
+            Remove-Item -LiteralPath $(Split-Path -LiteralPath $path -Parent) -Force -Recurse -ErrorAction SilentlyContinue
         }
     }
 } Else {
@@ -153,7 +153,7 @@ If ($WhatIf -or $($Copy -eq $false -and $Move -eq $false)) {
         ForEach ( $folder In $list ) {
             # Copy trailers to movie folders.
             $path, $dest = Set-PathDest -Folder $folder
-            Copy-Item -Path $path -Destination $dest
+            Copy-Item -LiteralPath $path -Destination $dest
         }
     }
 }

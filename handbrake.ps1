@@ -171,16 +171,16 @@ $webHookUri = ""
 [String]$installPath = "$ENV:LOCALAPPDATA\Scripts\HandBrake"
 [String]$log = "$installPath\logs\handbrake.log"
 # Verify paths.
-If ( ! $(Test-Path -Path $installPath) ) { New-Item -ItemType "Directory" -Path $installPath -Force }
-If ( $Source -ne "" ) { If ( ! $(Test-Path -Path $Source) ) { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help } Else { "Verified 'Source' path." } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help }
-If ( $Destination -ne "" ) { If ( ! $(Test-Path -Path $Destination) ) { New-Item -ItemType "Directory" -Path $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
+If ( ! $(Test-Path -LiteralPath $installPath) ) { New-Item -ItemType "Directory" -LiteralPath $installPath -Force }
+If ( $Source -ne "" ) { If ( ! $(Test-Path -LiteralPath $Source) ) { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help } Else { "Verified 'Source' path." } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help }
+If ( $Destination -ne "" ) { If ( ! $(Test-Path -LiteralPath $Destination) ) { New-Item -ItemType "Directory" -LiteralPath $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
 # Complete paths.
-If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
-If ( $(Split-Path -Path $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
+If ( $(Split-Path -LiteralPath $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
+If ( $(Split-Path -LiteralPath $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
 # Create logs path.
-If ( ! $(Test-Path -Path $(Split-Path -Path $log -Parent)) ) { New-Item -ItemType "Directory" -Path $(Split-Path -Path $log -Parent) -Force } Else { "Verified 'logs' path." }
+If ( ! $(Test-Path -LiteralPath $(Split-Path -LiteralPath $log -Parent)) ) { New-Item -ItemType "Directory" -LiteralPath $(Split-Path -LiteralPath $log -Parent) -Force } Else { "Verified 'logs' path." }
 # Create processed path.
-If ( $Processed -ne "" ) { If ( ! $(Test-Path -Path $Processed) ) { New-Item -ItemType "Directory" -Path $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Processed ; Help }
+If ( $Processed -ne "" ) { If ( ! $(Test-Path -LiteralPath $Processed) ) { New-Item -ItemType "Directory" -LiteralPath $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Processed ; Help }
 # Validate extensions input.
 If ( $SourceExt -ieq "" -or $DestinationExt -ieq "" ) { "SourceExt '{0}' or DestinationExt '{1}' is empty string.`n`nExitcode : 1" -f $SourceExt, $DestinationExt ; Help }
 
@@ -202,8 +202,8 @@ If ( $Notify.Length -gt 1) {
     # Truncate Notify to 2 elements.
     $Notify = $Notify[0..1]
     # Complete paths.
-    If ( $(Split-Path -Path $Notify[0] -Parent) -ieq "." ) { "Relative path detected...Resolving to absolute path..." ; $Notify[0] = Complete-Path -P $Notify[0] ; "Done." }
-    If ( $(Split-Path -Path $Notify[1] -Parent) -ieq "." ) { "Relative path detected...Resolving to absolute path..." ; $Notify[1] = Complete-Path -P $Notify[1] ; "Done." }
+    If ( $(Split-Path -LiteralPath $Notify[0] -Parent) -ieq "." ) { "Relative path detected...Resolving to absolute path..." ; $Notify[0] = Complete-Path -P $Notify[0] ; "Done." }
+    If ( $(Split-Path -LiteralPath $Notify[1] -Parent) -ieq "." ) { "Relative path detected...Resolving to absolute path..." ; $Notify[1] = Complete-Path -P $Notify[1] ; "Done." }
     [PSCustomObject]$result = ./Confirm-UserWebHook.ps1 -ArgumentList $Notify
     If ( $result.Verified -eq $true ) {
         $sendNote = $true
@@ -219,8 +219,8 @@ If ( $Notify.Length -gt 1) {
     }
 }
 function Run-Loop {
-    ForEach ( $directory In $(Get-ChildItem -Path $Source -Recurse -Include $Ready | Split-Path -Parent) ) {
-        $readyDirectory = Split-Path -Path $directory -Leaf
+    ForEach ( $directory In $(Get-ChildItem -LiteralPath $Source -Recurse -Include $Ready | Split-Path -Parent) ) {
+        $readyDirectory = Split-Path -LiteralPath $directory -Leaf
         If ($sendNote) {
             $response = ./Send-Message.ps1 -Content $("Copying directory tree for '{0}'." -f $readyDirectory) -Username $result.Username -Webhookuri $result.Webhookuri
             If ( $response -ilike "*Error*" ) { ./Add-LogAndPrint.ps1 -Path $log -Content $response }
@@ -230,7 +230,7 @@ function Run-Loop {
         $options = @("/e", "/z", "/xf", "*.*", "/xx", "/unilog+:$log")
         Robocopy $directory "$Destination\$readyDirectory" $options
         # Find mkv files.
-        ForEach ( $file In $(Get-ChildItem -Path "$directory" -Recurse -Include "*$SourceExt") ) {
+        ForEach ( $file In $(Get-ChildItem -LiteralPath "$directory" -Recurse -Include "*$SourceExt") ) {
             $in = $file.FullName
             $out = $($file.FullName).Replace($Source,$Destination)
             $out = $out.Replace($SourceExt,$DestinationExt)
@@ -260,7 +260,7 @@ function Run-Loop {
             } Else { "No preset found for Preset1: '{0}'.`n`nExitcode : 1" -f $Preset1 ; Help }
         }
         # Move folder to $Processed.
-        Move-Item -Path "$directory" -Destination "$Processed"
+        Move-Item -LiteralPath "$directory" -Destination "$Processed"
         ./Add-LogAndPrint.ps1 -Path $log -Content $("Moved '{0}' to '{1}'." -f $directory, $Processed)
         ./Add-LogAndPrint.ps1 -Path $log -Content $("Finished '{0}'." -f $readyDirectory)
         ./Add-LogAndPrint.ps1 -Path $log -Content $("Paused for '{0}' mins to allow graceful exit." -f $Pause)

@@ -65,7 +65,7 @@ If ( $Apikey -ine "" -and $Source -ine "" ) {
         $year = $($year -replace "\)","").Trim()
 
         # Title search url.
-        If ( $year -ieq "" ) { Add-Content -Path $Output -Value "$title - Skipped. No Year found." ; return }
+        If ( $year -ieq "" ) { Add-Content -LiteralPath $Output -Value "$title - Skipped. No Year found." ; return }
         
         $url = "http://www.omdbapi.com/?apikey={0}&t={1}&y={2}" -f $Apikey, [System.Web.HttpUtility]::UrlEncode($title), $year
         $results.Debug.Add($url)

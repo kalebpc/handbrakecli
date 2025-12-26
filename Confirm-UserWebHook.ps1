@@ -61,9 +61,9 @@ If ( $ArgumentList.Length -gt 1 ) {
         [CmdletBinding()]
         param([String]$S)
         # Check if file exists.
-        If ( Test-Path -Path $S ) {
+        If ( Test-Path -LiteralPath $S ) {
             # File exists.
-            ForEach ( $line In $(Get-Content -Path $S) ) {
+            ForEach ( $line In $(Get-Content -LiteralPath $S) ) {
                 $temp1, $temp2 = $($line -split "=", 2).Trim()
                 $temp1, $temp2 = $($temp1, $temp2).Trim("'")
                 $temp1, $temp2 = $($temp1, $temp2).Trim('"')
