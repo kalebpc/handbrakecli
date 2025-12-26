@@ -51,25 +51,25 @@ Get-Help ./handbrake -examples
 Example of what 'Source' Directory should resemble with 'Read.txt' file to mark it ready to process.
 ```
 C:\EXAMPLE_SOURCE_FOLDER
-+---Movie Title (Year)
-|   |   Movie Title (Year).mkv
++---Movie Title (Year) [imdbid-IMDBIDHERE]
+|   |   Movie Title (Year) [imdbid-IMDBIDHERE].mkv
 |   |   Ready.txt
 |   |
 |   +---extras
-|   |       1.mkv
+|   |        Movie Title (Year) [imdbid-IMDBIDHERE] - 1.mkv
 |   |
 |   \---trailers
-|           1.mkv
-|           2.mkv
-|           3.mkv
+|           Movie Title (Year) [imdbid-IMDBIDHERE] - 1.mkv
+|           Movie Title (Year) [imdbid-IMDBIDHERE] - 2.mkv
+|           Movie Title (Year) [imdbid-IMDBIDHERE] - 3.mkv
 |
-\---Spider-Man (2002)
+\---Spider-Man (2002) [imdbid-IMDBIDHERE]
     |   Ready.txt
-    |   Spider-Man (2002).mkv
-    |   trailer.mkv
+    |   Spider-Man (2002) [imdbid-IMDBIDHERE].mkv
+    |   Spider-Man (2002) [imdbid-IMDBIDHERE] - trailer.mkv
     |
     \---extras
-            extra.mkv
+            Spider-Man (2002) [imdbid-IMDBIDHERE] - extra.mkv
 ```
 [More info on movie directory setup](https://jellyfin.org/docs/general/server/media/movies/) for [Jellyfin](https://jellyfin.org/).
 
