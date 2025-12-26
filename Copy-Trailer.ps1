@@ -34,7 +34,7 @@
 
 .DESCRIPTION 
 
-    Check inside 'Movies' for movie that matches a folder inside 'Trailers'; If match is found and no trailer exists, copy the trailer to the movie folder renaming to 'trailer'.
+    Check inside 'Destination' for movie that matches a folder inside 'Source'; If match is found and no trailer exists, copy the trailer to the movie folder renaming to 'trailer'.
 
 .PARAMETER Source
 
@@ -63,7 +63,7 @@
 
 .EXAMPLE
 
-    ./Copy-Trailer -Source 'G:\Movie Trailers' -Destination 'G:\Movies'
+    ./Copy-Trailers -Source 'G:\Movie Trailers' -Destination 'G:\Movies'
 
 #> 
 

@@ -21,7 +21,7 @@
 
 .EXTERNALMODULEDEPENDENCIES 
 
-.REQUIREDSCRIPTS 
+.REQUIREDSCRIPTS Add-LogAndPrint.ps1 Confirm-UserWebHook.ps1 Send-Message.ps1
 
 .EXTERNALSCRIPTDEPENDENCIES 
 
@@ -84,6 +84,8 @@
     ./handbrakeTrailers.ps1 -Preset1 'Roku 1080p30' -Source 'G:/Downloads' -Destination 'G:/Videos/Movie Trailers' -SourceExt 'mkv' -DestinationExt 'mp4' -Ready 'Ready.txt' -Processed 'G:/Videos/Post-Processed/Movie Trailers' -Notify "file",".env"
 
 #> 
+
+
 [CmdletBinding(DefaultParameterSetName = "Encoding")]
 param(
     [Parameter(ParameterSetName = "Help")]
@@ -108,8 +110,6 @@ param(
     [String]$CheckMovies
 )
 
-Import-Module -Name "./modules/Exit-Script","./modules/Send-Message","./modules/Confirm-UserWebHook", "./modules/Add-LogAndPrint"
-
 function Complete-Path { param([String]$P) return "$PWD$($P.Substring(1))" }
 function Help {
    "Usage: `
@@ -124,9 +124,9 @@ Options: `
                                                 copy trailer to movie folder.`n `
 Example: `
     ./handbrakeTrailers -Preset 'Roku 1080p30' -Source 'G:/Downloads' -Destination 'G:/Videos/Movie Trailers' -SourceExt 'mkv' -DestinationExt 'mp4' -Processed 'G:/Videos/Post-Processed/Movie Trailers' -Notify 'file','.env'`n"
-    Return
+    Exit
 }
-If ($help) { Help ; Exiting -Reason "Show Help." -ExitCode 3 }
+If ($help) { Help }
 # Remove trailing whitespace
 $Preset = $Preset.Trim()
 $Source = $Source.Trim()
@@ -137,41 +137,37 @@ $Processed = $Processed.Trim()
 $skippedFiles = @()
 $processedFiles = 0
 $movedFiles = 0
-If ( $Preset -ieq "" ) { Exiting -Reason "Preset is empty string." -ExitCode 1 -ScriptHelp $(Complete-Path -P "./handbrakeTrailers.ps1") }
+If ( $Preset -ieq "" ) { "Preset is empty string.`n`nExitcode : 1" ; Help }
 # Verify paths.
-If ( $Source -ine "" ) { If ( ! $(Test-Path -Path $Source) ) { Exiting -Reason "System cannot find '$Source'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrakeTrailers.ps1") } Else { "Verified 'Source' path." } } Else { Exiting -Reason "System cannot find '$Source'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrakeTrailers.ps1") }
-If ( $Destination -ine "" ) { If ( ! $(Test-Path -Path $Destination) ) { New-Item -ItemType "Directory" -Path $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { Exiting -Reason "System cannot find '$Destination'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrakeTrailers.ps1") }
-If ( $Processed -ne "" ) { If ( ! $(Test-Path -Path $Processed) ) { New-Item -ItemType "Directory" -Path $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { Exiting -Reason "System cannot find '$Processed'." -Exitcode 1 -ScriptHelp $(Complete-Path -P "./handbrakeTrailers.ps1") }
+If ( $Source -ine "" ) { If ( ! $(Test-Path -Path $Source) ) { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help } Else { "Verified 'Source' path." } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help }
+If ( $Destination -ine "" ) { If ( ! $(Test-Path -Path $Destination) ) { New-Item -ItemType "Directory" -Path $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
+If ( $Processed -ne "" ) { If ( ! $(Test-Path -Path $Processed) ) { New-Item -ItemType "Directory" -Path $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Processed ; Help }
 # Complete paths.
 If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
 If ( $(Split-Path -Path $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
 # Validate extensions input.
-If ( $SourceExt -ieq "" -or $DestinationExt -ieq "" ) { Exiting -Reason "SourceExt '$SourceExt' or DestinationExt '$DestinationExt' is empty string." -ExitCode 1 -ScriptHelp $(Complete-Path -P "./handbrakeTrailers.ps1") }
+If ( $SourceExt -ieq "" -or $DestinationExt -ieq "" ) { "SourceExt '{0}' or DestinationExt '{1}' is empty string.`n`nExitcode : 1" -f $SourceExt, $DestinationExt ; Help }
 # Setup Notify if exist.
 [Boolean]$sendNote = $false
 If ( $Notify.Length -gt 1) {
-    Add-LogAndPrint -Content "Setting up discord webhook..."
+    ./Add-LogAndPrint.ps1 -Content "Setting up discord webhook..."
     # Truncate Notify to 2 elements.
     $Notify = $Notify[0..1]
     # Complete paths.
     If ( $(Split-Path -Path $Notify[0] -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Notify[0] = Complete-Path -P $Notify[0] ; "Done." }
     If ( $(Split-Path -Path $Notify[1] -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Notify[1] = Complete-Path -P $Notify[1] ; "Done." }
-    [PSCustomObject]$result = Confirm-UserWebHook -ArgumentList $Notify
+    [PSCustomObject]$result = ./Confirm-UserWebHook.ps1 -ArgumentList $Notify
     If ( $result.Verified -eq $true ) {
         $sendNote = $true
-        Add-LogAndPrint -Content "Notify enabled.`nFound: 'username'`nFound: 'webhookUri'"
-        If ($Copying) {
-            $response = Send-Message -Content "handbrake.ps1 started copying." -Username $result.Username -Webhookuri $result.Webhookuri
-        } Else {
-            $response = Send-Message -Content "handbrake.ps1 started encoding." -Username $result.Username -Webhookuri $result.Webhookuri
-        }
+        ./Add-LogAndPrint.ps1 -Content "Notify enabled.`nFound: 'username'`nFound: 'webhookUri'"
+        $response = ./Send-Message.ps1 -Content "handbrake.ps1 started encoding." -Username $result.Username -Webhookuri $result.Webhookuri
         # Print and log error if encountered.
-        If ( $response -ilike "*Error*" ) { Add-LogAndPrint -Content $response }
+        If ( $response -ilike "*Error*" ) { ./Add-LogAndPrint.ps1 -Content $response }
     } Else {
         $temp1, $temp2 = '',''
         If ( $result.Username -ieq "" ) { $temp1 = "`n'username' not found." }
         If ( $result.Webhookuri -ieq "" ) { $temp2 = "`n'webhookUri' not found." }
-        Add-LogAndPrint -Content "Notify not enabled.$temp1$temp2"
+        ./Add-LogAndPrint.ps1 -Content $("Notify not enabled.{0}{1}" -f $temp1, $temp2)
     }
 }
 # Create folder in destination, encode file and move file to 'Processed'.
@@ -189,9 +185,10 @@ ForEach ($file In $(Get-ChildItem -Path $Source)) {
 }
 # Print results.
 If ( $skippedFiles.Length -gt 0 ) { "`n`n" ; ForEach ( $_ In $skippedFiles ) { "{0}" -f $_ } }
-"`n$SourceExt's Processed : '{0}'`n$SourceExt's Moved     : '{2}'`n$SourceExt's Skipped   : '{1}'" -f $processedFiles, $skippedFiles.Count, $movedFiles
+"handbrakeTrailers Finished.`n{0}'s Processed : '{1}'`n{2}'s Moved     : '{3}'`n{4}'s Skipped   : '{5}'" -f $SourceExt, $processedFiles, $SourceExt, $movedFiles, $SourceExt, $skippedFiles.Count
 # Send update to discord.
-If ($sendNote) { Send-Message -Content "handbrakeTrailers Finished.`n$SourceExt's Processed : '$processedFiles'`n$SourceExt's Moved     : '$movedFiles'`n$SourceExt's Skipped   : '$($skippedFiles.Count)'" -Username $result.Username -Webhookuri $result.Webhookuri }
+If ($sendNote) {
+    ./Send-Message.ps1 -Content $("handbrakeTrailers Finished.`n{0}'s Processed : '{1}'`n{2}'s Moved     : '{3}'`n{4}'s Skipped   : '{5}'" -f $SourceExt, $processedFiles, $SourceExt, $movedFiles, $SourceExt, $skippedFiles.Count) -Username $result.Username -Webhookuri $result.Webhookuri
+}
 # CheckMovies
 If ( $CheckMovies -ine "" ) { ./Copy-Trailer $Destination $CheckMovies -w ; "`nDone running 'Copy-Trailer.ps1'"}
-
