@@ -7,4 +7,4 @@ param(
     [String]$Path
 )
 "`n[$(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")] {0}`n" -f $Content
-If ( $Path -ine "" ) { If ( Test-Path -Path $Path ) { Add-Content -Path $Path -Value "`n------------`n[$(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")] $Content`n------------`n" } Else { "`nError printing to log file." } }
+If ( $Path -ine "" ) { If ( Test-Path -LiteralPath $Path ) { Add-Content -LiteralPath $Path -Value "`n------------`n[$(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")] $Content`n------------`n" } Else { "`nError printing to log file." } }
