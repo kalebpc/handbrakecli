@@ -18,12 +18,12 @@ param(
 [Int64]$folderCount = $Folders.Count
 [Int64]$count = 0
 ForEach ( $folder In $Folders ) {
-    $title = $($(Split-Path -Path $folder -Leaf) -replace "\(.*$","").Trim()
+    $title = $($(Split-Path -LiteralPath $folder -Leaf) -replace "\(.*$","").Trim()
     "$folder"
     ForEach ( $name In $NewNames ) {
         If ( $name -ilike "*$title*" ) {
-            If ( ! $(Test-Path -Path "$(Split-Path -Path $folder -Parent)\$name" ) ) {
-                Rename-Item -Path "$folder" -NewName "$name"
+            If ( ! $(Test-Path -LiteralPath "$(Split-Path -LiteralPath $folder -Parent)\$name" ) ) {
+                Rename-Item -LiteralPath "$folder" -NewName "$name"
                 $count+=1
             }
         }
