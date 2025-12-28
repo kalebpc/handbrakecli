@@ -4,8 +4,6 @@
 
 #### [handbrakeTrailers.ps1](#handbraketrailers)
 
-#### [Copy-Trailers.ps1](#copy-trailers)
-
 # Required_Scripts
 
 #### Add-LogAndPrint.ps1
@@ -16,15 +14,7 @@
 
 # Extra_Scripts
 
-#### Get-imdbID.ps1
-
-#### Rename-Folders.ps1
-
 #### run.ps1
-
-#### Jellyfin-MakeStorage.ps1
-
-#### Jellyfin-ValidateStorage.ps1
 
 #### [Back to Top](#main_scripts)
 # Handbrake
@@ -102,13 +92,6 @@ Run from powershell terminal.
 # HandbrakeTrailers
 
 Encode movie trailers.
-
-Todo ...
-
-#### [Back to Top](#main_scripts)
-# Copy-Trailers
-
-Copy movie trailers from 'movie trailers' folders to respective movie folder if it exists.
 
 Todo ...
 

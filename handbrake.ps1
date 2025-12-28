@@ -175,10 +175,10 @@ If ( ! $(Test-Path -LiteralPath $installPath) ) { New-Item -ItemType "Directory"
 If ( $Source -ne "" ) { If ( ! $(Test-Path -LiteralPath $Source) ) { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help } Else { "Verified 'Source' path." } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help }
 If ( $Destination -ne "" ) { If ( ! $(Test-Path -LiteralPath $Destination) ) { New-Item -ItemType "Directory" -LiteralPath $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
 # Complete paths.
-If ( $(Split-Path -LiteralPath $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
-If ( $(Split-Path -LiteralPath $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
+If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
+If ( $(Split-Path -Path $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
 # Create logs path.
-If ( ! $(Test-Path -LiteralPath $(Split-Path -LiteralPath $log -Parent)) ) { New-Item -ItemType "Directory" -LiteralPath $(Split-Path -LiteralPath $log -Parent) -Force } Else { "Verified 'logs' path." }
+If ( ! $(Test-Path -LiteralPath $(Split-Path -Path $log -Parent)) ) { New-Item -ItemType "Directory" -LiteralPath $(Split-Path -Path $log -Parent) -Force } Else { "Verified 'logs' path." }
 # Create processed path.
 If ( $Processed -ne "" ) { If ( ! $(Test-Path -LiteralPath $Processed) ) { New-Item -ItemType "Directory" -LiteralPath $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Processed ; Help }
 # Validate extensions input.
