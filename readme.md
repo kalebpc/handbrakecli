@@ -22,6 +22,10 @@
 
 #### run.ps1
 
+#### Jellyfin-MakeStorage.ps1
+
+#### Jellyfin-ValidateStorage.ps1
+
 #### [Back to Top](#main_scripts)
 # Handbrake
 
