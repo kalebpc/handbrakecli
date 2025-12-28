@@ -143,8 +143,8 @@ If ( $Source -ine "" ) { If ( ! $(Test-Path -LiteralPath $Source) ) { "System ca
 If ( $Destination -ine "" ) { If ( ! $(Test-Path -LiteralPath $Destination) ) { New-Item -ItemType "Directory" -LiteralPath $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
 If ( $Processed -ne "" ) { If ( ! $(Test-Path -LiteralPath $Processed) ) { New-Item -ItemType "Directory" -LiteralPath $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Processed ; Help }
 # Complete paths.
-If ( $(Split-Path -LiteralPath $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
-If ( $(Split-Path -LiteralPath $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
+If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
+If ( $(Split-Path -Path $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
 # Validate extensions input.
 If ( $SourceExt -ieq "" -or $DestinationExt -ieq "" ) { "SourceExt '{0}' or DestinationExt '{1}' is empty string.`n`nExitcode : 1" -f $SourceExt, $DestinationExt ; Help }
 # Setup Notify if exist.
@@ -154,8 +154,8 @@ If ( $Notify.Length -gt 1) {
     # Truncate Notify to 2 elements.
     $Notify = $Notify[0..1]
     # Complete paths.
-    If ( $(Split-Path -LiteralPath $Notify[0] -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Notify[0] = Complete-Path -P $Notify[0] ; "Done." }
-    If ( $(Split-Path -LiteralPath $Notify[1] -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Notify[1] = Complete-Path -P $Notify[1] ; "Done." }
+    If ( $(Split-Path -Path $Notify[0] -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Notify[0] = Complete-Path -P $Notify[0] ; "Done." }
+    If ( $(Split-Path -Path $Notify[1] -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Notify[1] = Complete-Path -P $Notify[1] ; "Done." }
     [PSCustomObject]$result = ./Confirm-UserWebHook.ps1 -ArgumentList $Notify
     If ( $result.Verified -eq $true ) {
         $sendNote = $true
@@ -175,10 +175,10 @@ ForEach ($file In $(Get-ChildItem -LiteralPath $Source)) {
     $newDestFolder = $($file.FullName -replace "\.$SourceExt","").Replace($Source, $Destination)
     $in = $file.FullName
     $out = "$newDestFolder\$($file.Name.Replace($SourceExt,$DestinationExt))"
-    $move = "$Processed\$(Split-Path -LiteralPath $in -Leaf)"
+    $move = "$Processed\$(Split-Path -Path $in -Leaf)"
     # Create new folder in destination if not existing
-    If ( ! $(Test-Path -LiteralPath $newDestFolder) ) { New-Item -ItemType "Directory" -LiteralPath $newDestFolder -Force } Else { $skippedFiles+=$(Split-Path -LiteralPath $in -Leaf) ; return }
-    Try { HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out" } Catch { "Error using handbrakecli:`n  {0}`n`nin  : '{1}'`nout : '{2}'`n" -f $_.Exception.Message, $in, $out ; $skippedFiles+=$(Split-Path -LiteralPath $in -Leaf) ; return }
+    If ( ! $(Test-Path -LiteralPath $newDestFolder) ) { New-Item -ItemType "Directory" -LiteralPath $newDestFolder -Force } Else { $skippedFiles+=$(Split-Path -Path $in -Leaf) ; return }
+    Try { HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out" } Catch { "Error using handbrakecli:`n  {0}`n`nin  : '{1}'`nout : '{2}'`n" -f $_.Exception.Message, $in, $out ; $skippedFiles+=$(Split-Path -Path $in -Leaf) ; return }
     $processedFiles+=1
     Try { Move-Item -LiteralPath $in -Destination $move } Catch { "Error moving '{0}'." -f $in ; return }
     $movedFiles+=1
