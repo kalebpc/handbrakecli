@@ -48,7 +48,7 @@
 [OutputType([PSCustomObject])]
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true, HelpMessage = "Example: 'username','webhookUri' ; Example from file: 'file','webhookfile.ext'")]
+    [Parameter(Mandatory = $true, Position = 0, HelpMessage = "Example: 'username','webhookUri' ; Example from file: 'file','webhookfile.ext'")]
     [String[]]$ArgumentList
 )
 [PSCustomObject]$result = @{
