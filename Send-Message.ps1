@@ -15,7 +15,7 @@ param(
     [Parameter(Mandatory = $true, HelpMessage = "Enter webhook https address. Example: 'https://discord.com/api/webhooks/restofyourwebhookhere'.")]
     [String]$Webhookuri
 )
-[String]$response = "Success."
+[String]$response = "Success.`n"
 $body = @{
     'username' = $Username
     'content' = $Content
