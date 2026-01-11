@@ -163,29 +163,27 @@ $userName = ""
 $webHookUri = ""
 "Preset1: '{0}'`nPreset2: '{1}'`n" -f $Preset1,$Preset2
 
-# TODO ...
-# Need to find a way to figure out if destination is in the same path of source.
-# There is a issue where if the destination folder is in same directory of the source causes a recursion fault.
-
 # Set install path.
 [String]$installPath = "$ENV:LOCALAPPDATA\Scripts\HandBrake"
 [String]$log = "$installPath\logs\handbrake.log"
+
 # Verify paths.
 If ( ! $(Test-Path -LiteralPath $installPath) ) { New-Item -ItemType "Directory" -LiteralPath $installPath -Force }
 If ( $Source -ne "" ) { If ( ! $(Test-Path -LiteralPath $Source) ) { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help } Else { "Verified 'Source' path." } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help }
 If ( $Destination -ne "" ) { If ( ! $(Test-Path -LiteralPath $Destination) ) { New-Item -ItemType "Directory" -LiteralPath $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
+
 # Complete paths.
 If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
 If ( $(Split-Path -Path $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
+
 # Create logs path.
 If ( ! $(Test-Path -LiteralPath $(Split-Path -Path $log -Parent)) ) { New-Item -ItemType "Directory" -LiteralPath $(Split-Path -Path $log -Parent) -Force } Else { "Verified 'logs' path." }
+
 # Create processed path.
 If ( $Processed -ne "" ) { If ( ! $(Test-Path -LiteralPath $Processed) ) { New-Item -ItemType "Directory" -LiteralPath $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Processed ; Help }
+
 # Validate extensions input.
 If ( $SourceExt -ieq "" -or $DestinationExt -ieq "" ) { "SourceExt '{0}' or DestinationExt '{1}' is empty string.`n`nExitcode : 1" -f $SourceExt, $DestinationExt ; Help }
-
-# TODO ...
-# Need to add input validation for file extensions that are supported by HandBrakeCLI.
 
 ./Add-LogAndPrint.ps1 -Path $log -Content "Checking for 'HandBrake CLI'..."
 # Verify handbrakeCLI installed.
@@ -195,6 +193,7 @@ If ( $(Get-Package | Where { $_.Name -ieq "HandBrake CLI"}).Name -ieq "HandBrake
     ./Add-LogAndPrint.ps1 -Path $log -Content "'HandBrake CLI' not found."
     "'HandBrake CLI' not installed.`nInstall 'HandBrake CLI'.`n`nExitcode : 2"
 }
+
 # Setup Notify.
 [Boolean]$sendNote = $false
 If ( $Notify.Length -gt 1) {
@@ -218,6 +217,7 @@ If ( $Notify.Length -gt 1) {
         ./Add-LogAndPrint.ps1 -Path $log -Content $("Notify not enabled.{0}{1}" -f $temp1, $temp2)
     }
 }
+
 function Run-Loop {
     ForEach ( $directory In $(Get-ChildItem -Path $Source -Recurse -Include $Ready | Split-Path -Parent) ) {
         $readyDirectory = Split-Path -Path $directory -Leaf
@@ -241,12 +241,11 @@ function Run-Loop {
                         [Parameter(Position = 0)]
                         [String]$Preset
                     )
-                    HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out"
+                    HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out" 2>> $log
                 }
                 # Encode files.
                 If ( $Preset1 -ine "" ) {
                     If ( $Preset2 -ine "" ) {
-                        # TODO ... Add config where ANY subfolders are processed with Preset2 but direct folder uses Preset1.
                         If ( $in -imatch "extras" ) {
                             ./Add-LogAndPrint.ps1 -Path $log -Content $("Encoding Extras: {0}`nin  : '{1}'`nout : '{2}'." -f $Preset2, $in, $out)
                             Encode $Preset2
@@ -273,4 +272,5 @@ function Run-Loop {
         Start-Sleep -Seconds ($Pause * 60)
     }
 }
+
 While ($true) { Run-Loop ; Start-Sleep -Seconds ($CheckDirectory * 60) }
