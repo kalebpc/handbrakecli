@@ -104,7 +104,7 @@ function Run {
 
     function Get-NextFile {
     
-        ForEach ( $x In $(Get-ChildItem -LiteralPath $Folder -Recurse -Depth 1 | Where { $_.Name -imatch "^.*\.mp4" } | Sort-Object) ) {
+        ForEach ( $x In $(Get-ChildItem -LiteralPath $Folder -Recurse -Depth 1 | Where { $_.Name -imatch "^.*\.mp4" -or $_.Name -imatch "^.*\.mkv" } | Sort-Object) ) {
 
             [String]$temp = Replace-Extension $x.FullName
 
@@ -120,44 +120,51 @@ function Run {
 
     [System.IO.FileInfo]$x = Get-NextFile
 
-    [String]$temp = "Started: '{0}'." -f $x.FullName
+    If ( $x -ine "" -and $x -ne $null ) {
 
-    [String]$tmp = "logs\{0}.log" -f $($x.Name -replace " \[.*\] ?-? ?","_encode_")
+        [String]$temp = "Started: '{0}'." -f $x.FullName
 
-    [String]$tmp = $tmp -replace "\.mp4",".webm"
+        [String]$tmp = "logs\{0}.log" -f $($x.Name -replace " \[.*\] ?-? ?","_encode_")
 
-    [String]$templog = $log -replace "logs.*", $tmp
+        [String]$tmp = $tmp -replace "\.mp4",".webm"
 
-    If ( Test-Path -LiteralPath $templog ) { [String[]]$Global:completedFiles+=$x.FullName ; "Already completed : '{0}'." -f $templog; return }
+        [String]$tmp = $tmp -replace "\.mkv",".webm"
 
-    " " | Out-File -LiteralPath $templog -Encoding unicode
+        [String]$templog = $log -replace "logs.*", $tmp
 
-    Add-Log $temp $templog
+        If ( Test-Path -LiteralPath $templog ) { [String[]]$Global:completedFiles+=$x.FullName ; "Already completed : '{0}'." -f $templog; Run }
 
-    Format-TimeLog $temp
+        " " | Out-File -LiteralPath $templog -Encoding unicode
 
-    [String]$temp = Format-TimeLog $("Started: '{0}'." -f $x.Name)
+        Add-Log $temp $templog
 
-    If ($send) { $response = ./Send-Message -Content $temp -Username $result.Username -Webhookuri $result.Webhookuri ; If ( $response -inotlike "Success*" ) { $response } }
+        Format-TimeLog $temp
 
-    [System.DateTime]$starttime = Get-Date
+        [String]$temp = Format-TimeLog $("Started: '{0}'." -f $x.Name)
 
-    # HandbrakeCLI --preset-import-gui -Z "Creator 1080p30 webm" --start-at seconds:0 --stop-at seconds:5 -i $x.FullName -o $(Replace-Extension $x.FullName) 2>> $log
-    HandbrakeCLI --preset-import-gui -Z "Creator 1080p30 webm" -i $x.FullName -o $(Replace-Extension $x.FullName) 2>> $templog
+        If ($send) { $response = ./Send-Message -Content $temp -Username $result.Username -Webhookuri $result.Webhookuri ; If ( $response -inotlike "Success*" ) { $response } }
 
-    [System.DateTime]$endtime = Get-Date
+        [System.DateTime]$starttime = Get-Date
 
-    [String]$finished = "Finished '{0}' in {1}." -f $x.Name, $(Format-Time $(New-TimeSpan -Start $starttime -End $endtime))
+        # HandbrakeCLI --preset-import-gui -Z "Creator 1080p30 webm" --start-at seconds:0 --stop-at seconds:5 -i $x.FullName -o $(Replace-Extension $x.FullName) 2>> $log
+        HandbrakeCLI --preset-import-gui -Z "Creator 1080p30 webm" -i $x.FullName -o $(Replace-Extension $x.FullName) 2>> $templog
 
-    [String]$temp = Format-TimeLog $finished
+        [System.DateTime]$endtime = Get-Date
 
-    $temp
+        [String]$finished = "Finished '{0}' in {1}." -f $x.Name, $(Format-Time $(New-TimeSpan -Start $starttime -End $endtime))
 
-    If ($send) { $response = ./Send-Message -Content $temp -Username $result.Username -Webhookuri $result.Webhookuri ; If ( $response -inotlike "Success*" ) { $response } }
+        [String]$temp = Format-TimeLog $finished
 
-    Add-Log $finished $templog
+        $temp
 
-    [String[]]$Global:completedFiles+=$x.FullName
+        If ($send) { $response = ./Send-Message -Content $temp -Username $result.Username -Webhookuri $result.Webhookuri ; If ( $response -inotlike "Success*" ) { $response } }
+
+        Add-Log $finished $templog
+
+        [String[]]$Global:completedFiles+=$x.FullName
+
+    } Else { "Found nothing. Exiting." ; Exit }
+
 
 }
 
