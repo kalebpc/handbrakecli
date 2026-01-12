@@ -8,7 +8,7 @@
 [String]$destinationExt = "mp4"
 [String]$ready = "Ready.txt"
 [String]$processed = "G:\Temp-PostProcessed"
-[String[]]$notify = "file",".env"
+[String[]]$notify = "file","../.env"
 If ($notifying) {
     Start-Process -FilePath "powershell" -ArgumentList @("/c", "`$host.ui.RawUI.WindowTitle = 'handbrake.ps1' ; ./handbrake.ps1 -Preset1 '$preset1' -Source '$source' -Destination '$destination' -SourceExt '$sourceExt' -DestinationExt '$destinationExt' -Ready '$ready' -Processed '$processed' -Notify $($notify[0]),$($notify[1])")
 } Else {
