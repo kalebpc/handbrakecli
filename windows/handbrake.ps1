@@ -220,7 +220,7 @@ If ( $Notify.Length -gt 1) {
 }
 
 function Run-Loop {
-    ForEach ( $directory In $(Get-ChildItem -Path $Source -Recurse -Include $Ready | Split-Path -Parent) ) {
+    ForEach ( $directory In $(Get-ChildItem -Path $Source -Recurse -Include $Ready | Split-Path -Parent | Sort-Object ) ) {
         $readyDirectory = Split-Path -Path $directory -Leaf
         If ($sendNote) {
             $response = ./Send-Message.ps1 -Content $("Copying directory tree for '{0}'." -f $readyDirectory) -Username $result.Username -Webhookuri $result.Webhookuri
@@ -235,8 +235,7 @@ function Run-Loop {
             $in = $file.FullName
             $out = $($file.FullName).Replace($Source,$Destination)
             $out = $out.Replace($SourceExt,$DestinationExt)
-            $templog = $($file.FullName | Split-Path -Leaf).Replace($SourceExt,".log")
-            " " | Out-File -LiteralPath $templog -Encoding unicode -Append
+            [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($file.FullName | Split-Path -Leaf).Replace($SourceExt,"log")
             If ( $in -imatch ".*\.$SourceExt" -and $out -imatch ".*\.$DestinationExt" ) {
                 function Encode {
                     [CmdletBinding()]
@@ -244,6 +243,7 @@ function Run-Loop {
                         [Parameter(Position = 0)]
                         [String]$Preset
                     )
+                    ./Add-LogAndPrint.ps1 -Path $templog -Content "Start Encode."
                     HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out" 2>> $templog
                 }
                 # Encode files.
@@ -263,6 +263,8 @@ function Run-Loop {
                 } Else { "No preset found for Preset1: '{0}'.`n`nExitcode : 1" -f $Preset1 ; Help }
             }
         }
+        # TODO ... Implement background task to move folder to processed.
+        Rename-Item -LiteralPath $("{0}\{1}" -f $directory, $Ready) -NewName $("Done.txt")
         # Move folder to $Processed.
         Move-Item -LiteralPath $directory -Destination "$Processed"
         ./Add-LogAndPrint.ps1 -Path $log -Content $("Moved '{0}' to '{1}'." -f $directory, $Processed)
