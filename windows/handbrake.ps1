@@ -171,7 +171,7 @@ $webHookUri = ""
 If ( ! $(Test-Path -LiteralPath $installPath) ) { New-Item -ItemType "Directory" -Path $installPath -Force }
 If ( $Source -ne "" ) { If ( ! $(Test-Path -LiteralPath $Source) ) { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help } Else { "Verified 'Source' path." } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help }
 If ( $Destination -ne "" ) { If ( ! $(Test-Path -LiteralPath $Destination) ) { New-Item -ItemType "Directory" -Path $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
-If ( ! $(Test-Path -LiteralPath $log) ) { " " | Out-File -LiteralPath $log -Encoding unicode }
+If ( ! $(Test-Path -LiteralPath $log) ) { " " | Out-File -Path $log -Encoding unicode }
 
 # Complete paths.
 If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
@@ -235,7 +235,7 @@ function Run-Loop {
             $in = $file.FullName
             $out = $($file.FullName).Replace($Source,$Destination)
             $out = $out.Replace($SourceExt,$DestinationExt)
-            [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($file.FullName | Split-Path -Leaf).Replace($SourceExt,"log")
+            [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($($file.FullName | Split-Path -Leaf).Replace($SourceExt,"log") -replace "\ ?\[.*\]\ ?", "")
             If ( $in -imatch ".*\.$SourceExt" -and $out -imatch ".*\.$DestinationExt" ) {
                 function Encode {
                     [CmdletBinding()]
@@ -243,7 +243,7 @@ function Run-Loop {
                         [Parameter(Position = 0)]
                         [String]$Preset
                     )
-                    ./Add-LogAndPrint.ps1 -Path $templog -Content "Start Encode."
+                    " " | Out-File -LiteralPath $templog -Encoding unicode
                     HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out" 2>> $templog
                 }
                 # Encode files.
