@@ -168,9 +168,9 @@ $webHookUri = ""
 [String]$log = "$installPath\logs\handbrake.log"
 
 # Verify paths.
-If ( ! $(Test-Path -LiteralPath $installPath) ) { New-Item -ItemType "Directory" -LiteralPath $installPath -Force }
+If ( ! $(Test-Path -LiteralPath $installPath) ) { New-Item -ItemType "Directory" -Path $installPath -Force }
 If ( $Source -ne "" ) { If ( ! $(Test-Path -LiteralPath $Source) ) { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help } Else { "Verified 'Source' path." } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help }
-If ( $Destination -ne "" ) { If ( ! $(Test-Path -LiteralPath $Destination) ) { New-Item -ItemType "Directory" -LiteralPath $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
+If ( $Destination -ne "" ) { If ( ! $(Test-Path -LiteralPath $Destination) ) { New-Item -ItemType "Directory" -Path $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
 If ( ! $(Test-Path -LiteralPath $log) ) { " " | Out-File -LiteralPath $log -Encoding unicode }
 
 # Complete paths.
@@ -178,10 +178,10 @@ If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path dete
 If ( $(Split-Path -Path $Destination -Parent) -ieq "." ) { "Relative destination path detected...Resolving to absolute path..." ; $Destination = Complete-Path -P $Destination ; "Done." }
 
 # Create logs path.
-If ( ! $(Test-Path -LiteralPath $(Split-Path -Path $log -Parent)) ) { New-Item -ItemType "Directory" -LiteralPath $(Split-Path -Path $log -Parent) -Force } Else { "Verified 'logs' path." }
+If ( ! $(Test-Path -LiteralPath $(Split-Path -Path $log -Parent)) ) { New-Item -ItemType "Directory" -Path $(Split-Path -Path $log -Parent) -Force } Else { "Verified 'logs' path." }
 
 # Create processed path.
-If ( $Processed -ne "" ) { If ( ! $(Test-Path -LiteralPath $Processed) ) { New-Item -ItemType "Directory" -LiteralPath $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Processed ; Help }
+If ( $Processed -ne "" ) { If ( ! $(Test-Path -LiteralPath $Processed) ) { New-Item -ItemType "Directory" -Path $Processed -Force } Else { "Verified 'Processed' path.`n" } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Processed ; Help }
 
 # Validate extensions input.
 If ( $SourceExt -ieq "" -or $DestinationExt -ieq "" ) { "SourceExt '{0}' or DestinationExt '{1}' is empty string.`n`nExitcode : 1" -f $SourceExt, $DestinationExt ; Help }
