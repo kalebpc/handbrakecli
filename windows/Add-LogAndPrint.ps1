@@ -7,4 +7,26 @@ param(
     [String]$Path
 )
 "`n[$(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")] {0}`n" -f $Content
-If ( $Path -ine "" ) { If ( Test-Path -LiteralPath $Path ) { Add-Content -LiteralPath $Path -Value "`n------------`n[$(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")] $Content`n------------`n" } Else { "`nError printing to log file." } }
+If ( $Path -ine "" ) {
+    
+    If ( Test-Path -LiteralPath $Path ) {
+
+        Try {
+
+            Add-Content -LiteralPath $Path -Value "`n------------`n[$(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")] $Content`n------------`n"
+
+        } Catch {
+
+            $Path = "{0}\{1}-{2}" -f $($Path | Split-Path -Parent), $(Get-Random -Minimum 111111111 -Maximum 999999999 ), $($Path | Split-Path -Leaf)
+            
+            Add-Content -LiteralPath $Path -Value "`n------------`n[$(Get-Date -Format "yyyy.MM.dd - hh:mm:ss tt")] $Content`n------------`n"
+        
+        }
+    
+    } Else {
+        
+        "`nError printing to log file."
+
+    }
+    
+}
