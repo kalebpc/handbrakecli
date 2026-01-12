@@ -171,6 +171,7 @@ $webHookUri = ""
 If ( ! $(Test-Path -LiteralPath $installPath) ) { New-Item -ItemType "Directory" -LiteralPath $installPath -Force }
 If ( $Source -ne "" ) { If ( ! $(Test-Path -LiteralPath $Source) ) { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help } Else { "Verified 'Source' path." } } Else { "System cannot find '{0}'.`n`nExitcode : 1" -f $Source ; Help }
 If ( $Destination -ne "" ) { If ( ! $(Test-Path -LiteralPath $Destination) ) { New-Item -ItemType "Directory" -LiteralPath $Destination -Force } Else { "Verified 'Destination' path." } } ELSE { "System cannot find '{0}'.`n`nExitcode : 1" -f $Destination ; Help }
+If ( ! $(Test-Path -LiteralPath $log) ) { " " | Out-File -LiteralPath $log -Encoding unicode }
 
 # Complete paths.
 If ( $(Split-Path -Path $Source -Parent) -ieq "." ) { "Relative source path detected...Resolving to absolute path..." ; $Source = Complete-Path -P $Source ; "Done." }
@@ -234,6 +235,8 @@ function Run-Loop {
             $in = $file.FullName
             $out = $($file.FullName).Replace($Source,$Destination)
             $out = $out.Replace($SourceExt,$DestinationExt)
+            $templog = $($file.FullName | Split-Path -Leaf).Replace($SourceExt,".log")
+            " " | Out-File -LiteralPath $templog -Encoding unicode -Append
             If ( $in -imatch ".*\.$SourceExt" -and $out -imatch ".*\.$DestinationExt" ) {
                 function Encode {
                     [CmdletBinding()]
@@ -241,7 +244,7 @@ function Run-Loop {
                         [Parameter(Position = 0)]
                         [String]$Preset
                     )
-                    HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out" 2>> $log
+                    HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out" 2>> $templog
                 }
                 # Encode files.
                 If ( $Preset1 -ine "" ) {
