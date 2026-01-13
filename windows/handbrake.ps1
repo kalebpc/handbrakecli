@@ -50,6 +50,9 @@
 .PARAMETER Source
     Enter the path to directory of input folders.
 
+.PARAMETER Shows
+    Flag when encoding Shows instead of movies.
+
 .PARAMETER Destination
     Enter the path to directory of output folders.
 
@@ -114,6 +117,8 @@ param(
     [String]$Preset2,
     [Parameter(Mandatory = $true, ParameterSetName = "Encoding", HelpMessage="Enter the path to directory of input folders.")]
     [String]$Source,
+    [Parameter(ParameterSetName = "Encoding", HelpMessage="Flag when encoding Shows instead of movies.")]
+    [Switch]$Shows,
     [Parameter(Mandatory = $true, ParameterSetName = "Encoding", HelpMessage="Enter the path to directory of output folders.")]
     [String]$Destination,
     [Parameter(Mandatory = $true, ParameterSetName = "Encoding", HelpMessage="Enter the extension of input files.")]
@@ -221,7 +226,12 @@ If ( $Notify.Length -gt 1) {
 
 function Run-Loop {
     ForEach ( $directory In $(Get-ChildItem -Path $Source -Recurse -Include $Ready | Split-Path -Parent | Sort-Object ) ) {
-        $readyDirectory = Split-Path -Path $directory -Leaf
+        If ($Shows) {
+            # NOTE : for this to work the $Ready file has to be placed inside the individual Season * folders.
+            $readyDirectory = ($directory -split "\\")[-2..-1] -join "\"
+        } Else {
+            $readyDirectory = Split-Path -Path $directory -Leaf
+        }
         If ($sendNote) {
             $response = ./Send-Message.ps1 -Content $("Copying directory tree for '{0}'." -f $readyDirectory) -Username $result.Username -Webhookuri $result.Webhookuri
             If ( $response -ilike "*Error*" ) { ./Add-LogAndPrint.ps1 -Path $log -Content $response }
@@ -229,38 +239,48 @@ function Run-Loop {
         ./Add-LogAndPrint.ps1 -Path $log -Content $("Copying directory tree for '{0}'..." -f $directory)
         # Copy directory tree.
         $options = @("/e", "/z", "/xf", "*.*", "/xx", "/unilog+:$log")
-        Robocopy $directory "$Destination\$readyDirectory" $options
+        Robocopy $directory $("{0}\{1}" -f $Destination, $readyDirectory) $options
         # Find mkv files.
         ForEach ( $file In $(Get-ChildItem -LiteralPath $directory -Recurse) ) {
-            $in = $file.FullName
-            $out = $($file.FullName).Replace($Source,$Destination)
-            $out = $out.Replace($SourceExt,$DestinationExt)
-            [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($($file.FullName | Split-Path -Leaf).Replace($SourceExt,"log") -replace "\ ?\[.*\]\ ?", "")
-            If ( $in -imatch ".*\.$SourceExt" -and $out -imatch ".*\.$DestinationExt" ) {
-                function Encode {
-                    [CmdletBinding()]
-                    param(
-                        [Parameter(Position = 0)]
-                        [String]$Preset
-                    )
-                    " " | Out-File -LiteralPath $templog -Encoding unicode
-                    HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out" 2>> $templog
+            If ( $file.PSIsContainer -eq $false ) {
+                $in = $file.FullName
+                $out = $($file.FullName).Replace($Source,$Destination)
+                $out = $out.Replace($SourceExt,$DestinationExt)
+                If ($Shows) {
+                    If ( $out -imatch "\\extras\\" ) {
+                        [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($(($out -split "\\")[-4..-1] -join " - ") -replace "\[.*\]\ ?", "").Replace($DestinationExt,"log")
+                    } Else {
+                        [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($(($out -split "\\")[-3..-1] -join " - ") -replace "\[.*\]\ ?", "").Replace($DestinationExt,"log")
+                    }
+                } Else {
+                    [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($($file.FullName | Split-Path -Leaf).Replace($SourceExt,"log") -replace "\ ?\[.*\]\ ?", "")
                 }
-                # Encode files.
-                If ( $Preset1 -ine "" ) {
-                    If ( $Preset2 -ine "" ) {
-                        If ( $in -imatch "extras" ) {
-                            ./Add-LogAndPrint.ps1 -Path $log -Content $("Encoding Extras: {0}`nin  : '{1}'`nout : '{2}'." -f $Preset2, $in, $out)
-                            Encode $Preset2
+                If ( $in -imatch ".*\.$SourceExt" -and $out -imatch ".*\.$DestinationExt" ) {
+                    function Encode {
+                        [CmdletBinding()]
+                        param(
+                            [Parameter(Position = 0)]
+                            [String]$Preset
+                        )
+                        " " | Out-File -LiteralPath $templog -Encoding unicode
+                        HandBrakeCLI --preset-import-gui -Z "$Preset" -i "$in" -o "$out" 2>> $templog
+                    }
+                    # Encode files.
+                    If ( $Preset1 -ine "" ) {
+                        If ( $Preset2 -ine "" ) {
+                            If ( $in -imatch "extras" ) {
+                                ./Add-LogAndPrint.ps1 -Path $log -Content $("Encoding Extras: {0}`nin  : '{1}'`nout : '{2}'." -f $Preset2, $in, $out)
+                                Encode $Preset2
+                            } Else {
+                                ./Add-LogAndPrint.ps1 -Path $log -Content $("Encoding Movie/trailer: {0}`nin  : '{1}'`nout : '{2}'." -f $Preset1, $in, $out)
+                                Encode $Preset1
+                            }
                         } Else {
-                            ./Add-LogAndPrint.ps1 -Path $log -Content $("Encoding Movie/trailer: {0}`nin  : '{1}'`nout : '{2}'." -f $Preset1, $in, $out)
+                            ./Add-LogAndPrint.ps1 -Path $log -Content $("Encoding: {0}`nin  : '{1}'`nout : '{2}'." -f $Preset1, $in, $out)
                             Encode $Preset1
                         }
-                    } Else {
-                        ./Add-LogAndPrint.ps1 -Path $log -Content $("Encoding: {0}`nin  : '{1}'`nout : '{2}'." -f $Preset1, $in, $out)
-                        Encode $Preset1
-                    }
-                } Else { "No preset found for Preset1: '{0}'.`n`nExitcode : 1" -f $Preset1 ; Help }
+                    } Else { "No preset found for Preset1: '{0}'.`n`nExitcode : 1" -f $Preset1 ; Help }
+                }
             }
         }
         # TODO ... Implement background task to move folder to processed.
