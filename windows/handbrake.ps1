@@ -247,7 +247,7 @@ function Run-Loop {
                 $out = $($file.FullName).Replace($Source,$Destination)
                 $out = $out.Replace($SourceExt,$DestinationExt)
                 If ($Shows) {
-                    If ( $out -imatch "\\extras\\" ) {
+                    If ( $out -imatch "\\.*extras.*\\" ) {
                         [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($(($out -split "\\")[-4..-1] -join " - ") -replace "\[.*\]\ ?", "").Replace($DestinationExt,"log")
                     } Else {
                         [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($(($out -split "\\")[-3..-1] -join " - ") -replace "\[.*\]\ ?", "").Replace($DestinationExt,"log")
