@@ -286,8 +286,14 @@ function Run-Loop {
         # TODO ... Implement background task to move folder to processed.
         Rename-Item -LiteralPath $("{0}\{1}" -f $directory, $Ready) -NewName $("Done.txt")
         # Move folder to $Processed.
-        Move-Item -LiteralPath $directory -Destination "$Processed"
-        ./Add-LogAndPrint.ps1 -Path $log -Content $("Moved '{0}' to '{1}'." -f $directory, $Processed)
+        If ($Shows) {
+            $tmp = "{0}\{1}" -f $Processed, $readyDirectory
+            Move-Item -LiteralPath $directory -Destination $tmp
+            ./Add-LogAndPrint.ps1 -Path $log -Content $("Moved '{0}' to '{1}'." -f $directory, $tmp)
+        } Else {
+            Move-Item -LiteralPath $directory -Destination "$Processed"
+            ./Add-LogAndPrint.ps1 -Path $log -Content $("Moved '{0}' to '{1}'." -f $directory, $Processed)
+        }
         ./Add-LogAndPrint.ps1 -Path $log -Content $("Finished '{0}'." -f $readyDirectory)
         ./Add-LogAndPrint.ps1 -Path $log -Content $("Paused for '{0}' mins to allow graceful exit." -f $Pause)
         If ($sendNote) {
