@@ -253,7 +253,11 @@ function Run-Loop {
                         [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($(($out -split "\\")[-3..-1] -join " - ") -replace "\[.*\]\ ?", "").Replace($DestinationExt,"log")
                     }
                 } Else {
-                    [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($($file.FullName | Split-Path -Leaf).Replace($SourceExt,"log") -replace "\ ?\[.*\]\ ?", "")
+                    If ( $out -imatch "\\.*extras.*\\" ) {
+                        [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($(($out -split "\\")[-3..-1] -join " - ") -replace "\[.*\]\ ?", "").Replace($DestinationExt,"log")
+                    } Else {
+                        [String]$templog = "{0}\{1}" -f $($log | Split-Path -Parent), $($($file.FullName | Split-Path -Leaf).Replace($SourceExt,"log") -replace "\ ?\[.*\]\ ?", "")
+                    }
                 }
                 If ( $in -imatch ".*\.$SourceExt" -and $out -imatch ".*\.$DestinationExt" ) {
                     function Encode {
