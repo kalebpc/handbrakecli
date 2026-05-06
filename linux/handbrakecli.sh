@@ -58,7 +58,13 @@ Options:
     -b	<int>		run on loop monitoring '-S source' every n seconds
     -m			use when encoding movies;
     			  explanation:
-    			  	These placements will dictate how the source path is parsed to create name for 'CURRENT_ENCODE_LOG'.
+    			  	these placements will dictate how the source path is parsed to create name for 'CURRENT_ENCODE_LOG'.
+    -T                  use when encoding movie trailers
+                          explanation:
+                                encode trailer file as normal
+                                use ffmpeg to create placeholder movie files so jellyfin cinema mode plugins will correctly find trailers.
+                          REQUIRED:
+                          	ffmpeg installed on system
     -x			debug
 
 Example:
@@ -75,7 +81,7 @@ function add_log_entry () {
 }
 
 function set_opts () {
-	while getopts ":S:D:p:s:d:t:h :n :x :b:m :P:" opt; do
+	while getopts ":S:D:p:s:d:t:h :T :n :x :b:m :P:" opt; do
 		case $opt in
 			S) SOURCE=$(awk '{$1=$1}1' <<<"$OPTARG")
 			;;
@@ -88,6 +94,8 @@ function set_opts () {
 			d) DEST_EXT=$(awk '{$1=$1}1' <<<"$OPTARG")
 			;;
 			t) TEST=$(awk '{$1=$1}1' <<<"$OPTARG")
+			;;
+			T) TRAILER=true
 			;;
 			n) DRY_RUN=true
 			;;
@@ -112,6 +120,7 @@ function set_opts () {
 }
 
 function verify_user_input () {
+	[ "$TRAILER" == "true" ] && { command -v ffmpeg &> /dev/null && : || { echo "[         error] System could not find 'ffmpeg' installed."; return 1; }; }
 	! [ -d "$SOURCE" ] && { add_log_entry "[         error] System could not find '$SOURCE'."; return 1; }
 	! [ -d "$DEST" ] && { add_log_entry "[         error] System could not find '$DEST'."; return 1; }
 	[ -z "$HANDBRAKE_PRESET" ] && { add_log_entry "[         error] System could not use preset: '$HANDBRAKE_PRESET'."; return 1; }
@@ -140,6 +149,7 @@ function print_debug () {
 [$datetime][test               ] $TEST
 [$datetime][dryrun             ] $DRY_RUN
 [$datetime][movie              ] $MOVIE
+[$datetime][trailer            ] $TRAILER
 [$datetime][loop               ] $LOOP
 [$datetime][debug              ] $DEBUG
 EOF
@@ -201,13 +211,23 @@ function encode () {
 
 function run () {
 	local tmp temp errors=0
-	if [ "$MOVIE" == "true" ]; then
+	if [ "$MOVIE" == "true" ] || [ "$TRAILER" == "true" ]; then
 		# example test file placement
 		# $SOURCE/Movie Name (YEAR)/$TEST
 		for file in "$SOURCE"/*/"$TEST"; do
 			[[ "$file" =~ \* ]] && continue
 			local dir="${file/\/$TEST/}"
+			local fillerFile="$dir/${dir##/*/}.$SOURCE_EXT"
+			local premadeFile="$dir/${dir##/*/}.$DEST_EXT"
 			#add_log_entry "[           dir] $dir"
+			if [ "$TRAILER" == "true" ] && ! [ -f "$fillerFile" ] && ! [ -f "$premadeFile" ] ; then
+				add_log_entry "[  movie filler] $fillerFile"
+				if [ "$DRY_RUN" == "false" ]; then
+					ffmpeg -f lavfi -i "color=c=black:s=720x480:d=1" "$fillerFile"
+				else
+					echo "ffmpeg -f lavfi -i \"color=c=black:s=720x480:d=1\" \"$fillerFile\""
+				fi
+			fi
 			for fil in "$dir"/*; do
 				if [ -d "$fil" ]; then
 					for x in "$fil"/*; do
@@ -273,7 +293,7 @@ function run () {
 
 function main () {
 
-	local DRY_RUN=false; DEBUG=false; CURRENT_ENCODE_LOG=""; LOOP=0; MOVIE=false; PROCESSED="" 
+	local DRY_RUN=false; DEBUG=false; CURRENT_ENCODE_LOG=""; LOOP=0; MOVIE=false; PROCESSED=""; TRAILER=false
 	
 	# Setup logs
 	! [ -d "$ENCODE_LOG" ] && { mkdir -p "$ENCODE_LOG"; [ $? -ne 0 ] && { echo "[         error] creating encode logs directory: '$ENCODE_LOG'." >&2; exit 1; }; }
@@ -302,4 +322,3 @@ function main () {
 	fi
 }
 main "$@"
-
