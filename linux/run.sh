@@ -30,6 +30,7 @@
 ######################################################
 ######################################################
 
-#./handbrakecli.sh -S "/media/$USER/2 TB/MKV Movies" -D "/media/$USER/2 TB/Jellyfin/Movies" -s 'mkv' -d 'mp4' -P "/media/$USER/2 TB/Temp-PostProcessed" -t 'Ready' -m
-#./handbrakecli.sh -S "/media/$USER/2 TB/MKV Shows" -D "/media/$USER/2 TB/Jellyfin/Shows" -s 'mkv' -d 'mp4' -P "/media/$USER/2 TB/Temp-PostProcessed" -t 'Ready'
-./handbrakecli.sh -S "/media/$USER/2 TB/MKV Trailers" -D "/media/$USER/2 TB/Jellyfin/Movie Trailers" -s 'mkv' -d 'mp4' -P "/media/$USER/2 TB/Temp-PostProcessed" -t 'Ready' -T -n
+#./handbrakecli.sh -S "/media/$USER/2 TB/MKV Movies" -D "/media/$USER/2 TB/Jellyfin/Movies" -s 'mkv' -d 'mp4' -P "/media/$USER/2 TB/Temp-PostProcessed" -t 'Ready' -m -n
+./handbrakecli.sh -S "/media/$USER/2 TB/MKV Shows" -D "/media/$USER/2 TB/Jellyfin/Shows" -s 'mkv' -d 'mp4' -P "/media/$USER/2 TB/Temp-PostProcessed" -t 'Ready' -n -x
+#./handbrakecli.sh -S "/media/$USER/2 TB/MKV Shows" -D "/media/$USER/2 TB/Jellyfin/My Shows" -s 'mkv' -d 'mp4' -P "/media/$USER/2 TB/Temp-PostProcessed" -t 'Ready' -n
+#./handbrakecli.sh -S "/media/$USER/2 TB/MKV Trailers" -D "/media/$USER/2 TB/Jellyfin/Movie Trailers" -s 'mkv' -d 'mp4' -P "/media/$USER/2 TB/Temp-PostProcessed" -t 'Ready' -T -n
