@@ -32,8 +32,8 @@
 
 SCRIPT_NAME="./handbrakecli.sh"
 HANDBRAKE_PRESET="1080p30 mp4"
-SCRIPT_LOG="${HOME}/Logs/handbrakecli.log"
-ENCODE_LOG="${HOME}/Logs/handbrakecli"
+SCRIPT_LOG="$HOME/Logs/handbrakecli.log"
+ENCODE_LOG="$HOME/Logs/handbrakecli"
 
 function help () {
 	cat << EOF
@@ -75,9 +75,7 @@ EOF
 
 function add_log_entry () {
 	echo "[$(date "+%H:%M:%S")] $1" >&2
-	if [ "$DRY_RUN" == "false" ]; then
-		{ echo "[$(date "+%Y-%m-%d %H:%M:%S")] $1" >> "$SCRIPT_LOG"; [ $? -ne 0 ] && printf "[         error] Failed to add entry to '%s'.\n" "$1" >&2; }
-	fi
+	[ "$DRY_RUN" == "false" ] && { echo "[$(date "+%Y-%m-%d %H:%M:%S")] $1" >> "$SCRIPT_LOG" || printf "[         error] Failed to add entry '%s' to '%s'.\n" "$1" "$SCRIPT_LOG" >&2; }
 }
 
 function set_opts () {
@@ -120,15 +118,27 @@ function set_opts () {
 }
 
 function verify_user_input () {
-	[ "$TRAILER" == "true" ] && { command -v ffmpeg &> /dev/null && : || { echo "[         error] System could not find 'ffmpeg' installed."; return 1; }; }
+	[ "$TRAILER" == "true" ] && { command -v ffmpeg &> /dev/null || { echo "[         error] System could not find 'ffmpeg' installed."; return 1; }; }
+	
 	! [ -d "$SOURCE" ] && { add_log_entry "[         error] System could not find '$SOURCE'."; return 1; }
+	
 	! [ -d "$DEST" ] && { add_log_entry "[         error] System could not find '$DEST'."; return 1; }
+	
 	[ -z "$HANDBRAKE_PRESET" ] && { add_log_entry "[         error] System could not use preset: '$HANDBRAKE_PRESET'."; return 1; }
+	
 	[ -z "$SOURCE_EXT" ] && { add_log_entry "[         error] System could not use source extension: '$SOURCE_EXT'."; return 1; }
+	
 	[ -z "$DEST_EXT" ] && { add_log_entry "[         error] System could not use destination extension: '$DEST_EXT'."; return 1; }
+	
 	[ -z "$TEST" ] && { add_log_entry "[         error] System could not use test file: '$TEST'."; return 1; }
+	
 	! [[ "$LOOP" =~ ^[0-9]+$ ]] && { add_log_entry "[         error] System could not use loop: '$LOOP'."; return 1; }
-	! [ -d "$PROCESSED" ] && { add_log_entry "[  creating dir] Creating processed folder: '$PROCESSED'."; [ "$DRY_RUN" == "false" ] && mkdir -p "$PROCESSED"; [ $? -ne 0 ] && { add_log_entry "[         error] System could not create processed folder: '$PROCESSED'."; return 1; }; }
+	
+	[ "$PROCESSED" == "" ] && { add_log_entry "[         error] System could not create processed folder: '$PROCESSED'."; return 1; }
+	if ! [ -d "$PROCESSED" ]; then
+		add_log_entry "[  creating dir] Creating processed folder: '$PROCESSED'."
+		[ "$DRY_RUN" == "false" ] && { mkdir -p "$PROCESSED" || { add_log_entry "[         error] System could not create processed folder: '$PROCESSED'."; return 1; }; }
+	fi
 	return 0
 }
 
@@ -156,31 +166,33 @@ EOF
 }
 
 function encode () {
-	local tmp=$(basename "$1")
-	local result=0
+	local tmp=$(basename "$1") result=0
 	CURRENT_ENCODE_LOG="$ENCODE_LOG/${tmp/.$SOURCE_EXT/} $(date "+%Y-%m-%d %H-%M-%S").log"
 	IN="$1"
 	OUT="${1/$SOURCE/$DEST}"
 	OUT="${OUT/$SOURCE_EXT/$DEST_EXT}"
 	
 	[ "$DEBUG" == "true" ] && print_debug
+	
 	add_log_entry "[start encoding]"
+	
 	[ "$DRY_RUN" == "true" ] && add_log_entry "[       dry run] 'true'"
 	
 	# create output directories if not existing
 	tmp=$(dirname "$OUT")
 	if ! [ -d "$tmp" ]; then
 		add_log_entry "[  creating dir] '$tmp'"
-		[ "$DRY_RUN" == "false" ] && { mkdir -p "$tmp"; [ $? -ne 0 ] && { add_log_entry "[         error] creating directories for OUT: '$OUT'"; return; }; }
+		[ "$DRY_RUN" == "false" ] && { mkdir -p "$tmp" || { add_log_entry "[         error] creating directories for OUT: '$OUT'"; return; }; }
 	fi
 	if ! [ -f "$CURRENT_ENCODE_LOG" ]; then
 		add_log_entry "[  creating log] '$CURRENT_ENCODE_LOG'"
-		[ "$DRY_RUN" == "false" ] && { > "$CURRENT_ENCODE_LOG"; [ $? -ne 0 ] && add_log_entry "[         error] creating current log file: '$CURRENT_ENCODE_LOG'"; }
+		[ "$DRY_RUN" == "false" ] && { > "$CURRENT_ENCODE_LOG" || add_log_entry "[         error] creating current log file: '$CURRENT_ENCODE_LOG'"; }
 	fi
 	
 	add_log_entry "[        preset] '$HANDBRAKE_PRESET'"
 	add_log_entry "[         input] '$IN'"
 	add_log_entry "[        output] '$OUT'"
+	
 	# encode file
 	if [ "$DRY_RUN" == "true" ]; then
 		# simulating coding progress
@@ -210,7 +222,7 @@ function encode () {
 }
 
 function run () {
-	local tmp temp errors=0
+	local tmp temp errors=0 file fil dir
 	if [ "$MOVIE" == "true" ] || [ "$TRAILER" == "true" ]; then
 		# example test file placement
 		# $SOURCE/Movie Name (YEAR)/$TEST
@@ -220,6 +232,14 @@ function run () {
 			local fillerFile="$dir/${dir##/*/}.$SOURCE_EXT"
 			local premadeFile="$dir/${dir##/*/}.$DEST_EXT"
 			#add_log_entry "[           dir] $dir"
+			if [ "$TRAILER" == "true" ] && ! [[ -f "$dir/${dir##/*/} - trailer.$SOURCE_EXT" ]]; then
+				add_log_entry "[***ATTENTION**] TRAILER FILE IS REQUIRED TO END WITH ' - trailer.$SOURCE_EXT'"
+				if [ -f "$fillerFile" ]; then
+					add_log_entry "[***ATTENTION**] found '$fillerFile'"
+					add_log_entry "[***ATTENTION**] rename '${fillerFile##/*/}' to '${dir##/*/} - trailer.$SOURCE_EXT'"
+					exit 1
+				fi
+			fi
 			if [ "$TRAILER" == "true" ] && ! [ -f "$fillerFile" ] && ! [ -f "$premadeFile" ] ; then
 				add_log_entry "[  movie filler] $fillerFile"
 				if [ "$DRY_RUN" == "false" ]; then
@@ -246,7 +266,7 @@ function run () {
 			if [ $errors -eq 0 ]; then
 				tmp=$(basename "$dir")
 				add_log_entry "[        moving] '$dir' to '${PROCESSED}/${tmp}'"
-				[ "$DRY_RUN" == "false" ] && { mv "$dir" "${PROCESSED}/${tmp}"; [ $? -ne 0 ] && add_log_entry "[         error] moving '$dir' to '${PROCESSED}/${tmp}'."; }
+				[ "$DRY_RUN" == "false" ] && { mv "$dir" "${PROCESSED}/${tmp}" || add_log_entry "[         error] moving '$dir' to '${PROCESSED}/${tmp}'."; }
 			fi
 		done
 	else
@@ -276,16 +296,18 @@ function run () {
 				[ "${tmp:0:1}" == "/" ] && tmp="${tmp:1}"
 				temp=$(dirname "$tmp")
 				local tempbase=$(basename "$temp")
-				! [ -d "${PROCESSED}/${tempbase}" ] && { add_log_entry "[  creating dir] '${PROCESSED}/${tempbase}'"; [ "$DRY_RUN" == "false" ] && { mkdir -p "${PROCESSED}/${tempbase}"; [ $? -ne 0 ] && { add_log_entry "[         error] creating processed directory for: '$dir'."; continue; }; }; }
+				if ! [ -d "${PROCESSED}/${tempbase}" ]; then
+					add_log_entry "[  creating dir] '${PROCESSED}/${tempbase}'"
+					if [ "$DRY_RUN" == "false" ]; then
+						mkdir -p "${PROCESSED}/${tempbase}" || { add_log_entry "[         error] creating processed directory for: '$dir'."; continue; }
+					fi
+				fi
 				tmp="${tempbase}/$(basename "$tmp")"
 				add_log_entry "[        moving] '$dir' to '${PROCESSED}/${tmp}'"
-				if [ "$DRY_RUN" == "false" ]; then
-					mv "$dir" "${PROCESSED}/${tmp}"
-					[ $? -ne 0 ] && ( add_log_entry "[         error] moving '$dir' to '${PROCESSED}/${tmp}'."; continue; )
-				fi
+				[ "$DRY_RUN" == "false" ] && { mv "$dir" "${PROCESSED}/${tmp}" || { add_log_entry "[         error] moving '$dir' to '${PROCESSED}/${tmp}'."; continue; }; }
 				temp=$(dirname "$dir")
 				add_log_entry "[      removing] '$temp'."
-				[ "$DRY_RUN" == "false" ] && { rmdir "$temp"; [ $? -ne 0 ] && add_log_entry "[         error] removing '$temp'."; }
+				[ "$DRY_RUN" == "false" ] && { rmdir "$temp" || add_log_entry "[         error] removing '$temp'."; }
 			fi
 		done
 	fi
@@ -293,17 +315,16 @@ function run () {
 
 function main () {
 
-	local DRY_RUN=false; DEBUG=false; CURRENT_ENCODE_LOG=""; LOOP=0; MOVIE=false; PROCESSED=""; TRAILER=false
+	local DRY_RUN=false DEBUG=false CURRENT_ENCODE_LOG="" LOOP=0 MOVIE=false PROCESSED="" TRAILER=false
 	
 	# Setup logs
-	! [ -d "$ENCODE_LOG" ] && { mkdir -p "$ENCODE_LOG"; [ $? -ne 0 ] && { echo "[         error] creating encode logs directory: '$ENCODE_LOG'." >&2; exit 1; }; }
-	! [ -f "$SCRIPT_LOG" ] && { > "$SCRIPT_LOG"; [ $? -ne 0 ] && { echo "[         error] creating script log file: '$SCRIPT_LOG'." >&2; exit 1; }; }
+	! [ -d "$ENCODE_LOG" ] && { mkdir -p "$ENCODE_LOG" || { echo "[         error] creating encode logs directory: '$ENCODE_LOG'." >&2; exit 1; }; }
+	! [ -f "$SCRIPT_LOG" ] && { > "$SCRIPT_LOG" || { echo "[         error] creating script log file: '$SCRIPT_LOG'." >&2; exit 1; }; }
 	
 	# Catch no args run
-	[ $# -ne 0 ] && set_opts "$@" || { add_log_entry "[         error] '$SCRIPT_NAME' requires arguments.\n"; help; exit 1; }
+	[ $# -ne 0 ] && { set_opts "$@" || { add_log_entry "[         error] '$SCRIPT_NAME' requires arguments.\n"; help; exit 1; }; }
 	
 	if verify_user_input; then
-		[ "$DEBUG" == "true" ] && print_debug
 		if [ $LOOP -gt 0 ]; then
 			# currently not safe to use; if folder does not get moved due to error it will try to encode it again.
 			#while true; do
@@ -317,6 +338,7 @@ function main () {
 			#add_log_entry 'no loop; encode things.'
 			run
 		fi
+		[ "$DEBUG" == "true" ] && print_debug
 	else
 		echo "Print help: $SCRIPT_NAME -h"; exit 1
 	fi
