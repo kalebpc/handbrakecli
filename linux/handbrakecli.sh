@@ -39,13 +39,12 @@ function help () {
 	cat << EOF
 
 Usage:
-    $SCRIPT_NAME -S <string> -D <string> -p <string> -s <string> -d <string> -t <string> [OPTION...]
+    $SCRIPT_NAME -S <string> -D <string> -p <string> -d <string> -t <string> [OPTION...]
 
 Required Arguments:
     -S	<string>	path to source directory
     -D	<string>	path to destination directory
     -p	<string>	handbrake preset
-    -s	<string>	source file extension
     -d	<string>	destination file extension
     -t	<string>	file placed within source dirs to signify ready to encode
     			  explanation:
@@ -68,7 +67,7 @@ Options:
     -x			debug
 
 Example:
-    $SCRIPT_NAME -S "$HOME/Videos/MKV" -D "$HOME/Videos/MP4" -p "Fast 1080p30" -s "mkv" -d "mp4" -t "Ready.txt"
+    $SCRIPT_NAME -S "$HOME/Videos/MKV" -D "$HOME/Videos/MP4" -p "Fast 1080p30" -d "mp4" -t "Ready.txt"
 
 EOF
 }
@@ -79,15 +78,13 @@ function add_log_entry () {
 }
 
 function set_opts () {
-	while getopts ":S:D:p:s:d:t:h :T :n :x :b:m :P:" opt; do
+	while getopts ":S:D:p:d:t:h :T :n :x :b:m :P:" opt; do
 		case $opt in
 			S) SOURCE=$(awk '{$1=$1}1' <<<"$OPTARG")
 			;;
 			D) DEST=$(awk '{$1=$1}1' <<<"$OPTARG")
 			;;
 			p) HANDBRAKE_PRESET=$(awk '{$1=$1}1' <<<"$OPTARG")
-			;;
-			s) SOURCE_EXT=$(awk '{$1=$1}1' <<<"$OPTARG")
 			;;
 			d) DEST_EXT=$(awk '{$1=$1}1' <<<"$OPTARG")
 			;;
@@ -126,8 +123,6 @@ function verify_user_input () {
 	
 	[ -z "$HANDBRAKE_PRESET" ] && { add_log_entry "[         error] System could not use preset: '$HANDBRAKE_PRESET'."; return 1; }
 	
-	[ -z "$SOURCE_EXT" ] && { add_log_entry "[         error] System could not use source extension: '$SOURCE_EXT'."; return 1; }
-	
 	[ -z "$DEST_EXT" ] && { add_log_entry "[         error] System could not use destination extension: '$DEST_EXT'."; return 1; }
 	
 	[ -z "$TEST" ] && { add_log_entry "[         error] System could not use test file: '$TEST'."; return 1; }
@@ -154,7 +149,6 @@ function print_debug () {
 [$datetime][in                 ] $IN
 [$datetime][out                ] $OUT
 [$datetime][preset             ] $HANDBRAKE_PRESET
-[$datetime][source ext         ] $SOURCE_EXT
 [$datetime][destination ext    ] $DEST_EXT
 [$datetime][test               ] $TEST
 [$datetime][dryrun             ] $DRY_RUN
@@ -166,11 +160,11 @@ EOF
 }
 
 function encode () {
-	local tmp=$(basename "$1") result=0
-	CURRENT_ENCODE_LOG="$ENCODE_LOG/${tmp/.$SOURCE_EXT/} $(date "+%Y-%m-%d %H-%M-%S").log"
+	local tmp=$(basename "$1") result=0 insize=1 outsize=1 percent=0
+	CURRENT_ENCODE_LOG="$ENCODE_LOG/${tmp%\.*} $(date "+%Y-%m-%d %H-%M-%S").log"
 	IN="$1"
 	OUT="${1/$SOURCE/$DEST}"
-	OUT="${OUT/$SOURCE_EXT/$DEST_EXT}"
+	OUT="${OUT%\.*}.$DEST_EXT"
 	
 	[ "$DEBUG" == "true" ] && print_debug
 	
@@ -206,18 +200,33 @@ function encode () {
 		# flatpak installed handbrake
 		echo "flatpak run --command=HandBrakeCLI fr.handbrake.ghb --preset-import-gui -Z "$HANDBRAKE_PRESET" -i "$IN" -o "$OUT" 2>> $CURRENT_ENCODE_LOG"
 		
-		printf "Encoding: %s, pass 1 of 1, %d %% (xxx fps ETA xxHxxMxxS)" "$OUT" "$n"
-		printf "\n"
+		printf "Encoding: %s, pass 1 of 1, 100 %% (xxx fps ETA xxHxxMxxS)\n" "$OUT"
+
+		insize=$(stat -c%s "$IN")
+		outsize=$insize
+		percent=$(echo "scale=2; $outsize / $insize" | bc)
+		add_log_entry "[   output size] ${percent//\./}% of original size."
 	else
 		# flatpak installed handbrake
 		flatpak run --command=HandBrakeCLI fr.handbrake.ghb --preset-import-gui -Z "$HANDBRAKE_PRESET" -i "$IN" -o "$OUT" 2>> "$CURRENT_ENCODE_LOG"
 
 		#HandBrakeCLI --preset-import-gui -Z "$HANDBRAKE_PRESET" -i "$IN" -o "$OUT" 2>> $CURRENT_ENCODE_LOG
 		
-		[ $? -ne 0 ] && { add_log_entry "[         error] Handbrake error encountered encoding '$IN'"; result=1; }
+		if [ $? -eq 0 ]; then
+			insize=$(stat -c%s "$IN")
+			outsize=$(stat -c%s "$OUT")
+			percent=$(echo "scale=2; $outsize / $insize" | bc)
+			add_log_entry "[   output size] ${percent//\./}% of original size."
+		else
+			add_log_entry "[         error] Handbrake error encountered encoding '$IN'"; result=1
+		fi
+		
 	fi
 	# check exit code
 	add_log_entry "[ done encoding]"
+	add_log_entry "[      sleeping] 1 min"
+	printf "\n"
+	sleep 1m
 	return $result
 }
 
@@ -229,14 +238,14 @@ function run () {
 		for file in "$SOURCE"/*/"$TEST"; do
 			[[ "$file" =~ \* ]] && continue
 			local dir="${file/\/$TEST/}"
-			local fillerFile="$dir/${dir##/*/}.$SOURCE_EXT"
+			local fillerFile="$dir/${dir##/*/}.mkv"
 			local premadeFile="$dir/${dir##/*/}.$DEST_EXT"
 			#add_log_entry "[           dir] $dir"
-			if [ "$TRAILER" == "true" ] && ! [[ -f "$dir/${dir##/*/} - trailer.$SOURCE_EXT" ]]; then
-				add_log_entry "[***ATTENTION**] TRAILER FILE IS REQUIRED TO END WITH ' - trailer.$SOURCE_EXT'"
+			if [ "$TRAILER" == "true" ] && ! [[ -f "$dir/${dir##/*/} - trailer.mkv" ]]; then
+				add_log_entry "[***ATTENTION**] TRAILER FILE IS REQUIRED TO END WITH ' - trailer and extension'"
 				if [ -f "$fillerFile" ]; then
 					add_log_entry "[***ATTENTION**] found '$fillerFile'"
-					add_log_entry "[***ATTENTION**] rename '${fillerFile##/*/}' to '${dir##/*/} - trailer.$SOURCE_EXT'"
+					add_log_entry "[***ATTENTION**] rename '${fillerFile##/*/}' to '${dir##/*/} - trailer.mkv'"
 					exit 1
 				fi
 			fi
@@ -249,6 +258,7 @@ function run () {
 				fi
 			fi
 			for fil in "$dir"/*; do
+				[[ "$file" =~ \* ]] && continue
 				if [ -d "$fil" ]; then
 					for x in "$fil"/*; do
 						#add_log_entry "[extras file] $x"
@@ -265,8 +275,8 @@ function run () {
 			done
 			if [ $errors -eq 0 ]; then
 				tmp=$(basename "$dir")
-				add_log_entry "[        moving] '$dir' to '${PROCESSED}/${tmp}'"
-				[ "$DRY_RUN" == "false" ] && { mv "$dir" "${PROCESSED}/${tmp}" || add_log_entry "[         error] moving '$dir' to '${PROCESSED}/${tmp}'."; }
+				add_log_entry "[        moving] '$dir' to '${PROCESSED}/'"
+				[ "$DRY_RUN" == "false" ] && { mv "$dir" "${PROCESSED}/" || add_log_entry "[         error] moving '$dir' to '${PROCESSED}/'."; }
 			fi
 		done
 	else
@@ -303,8 +313,8 @@ function run () {
 					fi
 				fi
 				tmp="${tempbase}/$(basename "$tmp")"
-				add_log_entry "[        moving] '$dir' to '${PROCESSED}/${tmp}'"
-				[ "$DRY_RUN" == "false" ] && { mv "$dir" "${PROCESSED}/${tmp}" || { add_log_entry "[         error] moving '$dir' to '${PROCESSED}/${tmp}'."; continue; }; }
+				add_log_entry "[        moving] '$dir' to '${PROCESSED}/'"
+				[ "$DRY_RUN" == "false" ] && { mv "$dir" "${PROCESSED}/" || { add_log_entry "[         error] moving '$dir' to '${PROCESSED}/'."; continue; }; }
 				temp=$(dirname "$dir")
 				add_log_entry "[      removing] '$temp'."
 				[ "$DRY_RUN" == "false" ] && { rmdir "$temp" || add_log_entry "[         error] removing '$temp'."; }
